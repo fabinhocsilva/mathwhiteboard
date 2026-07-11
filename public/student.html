@@ -247,6 +247,21 @@
   </div>
 </div>
 
+
+<!-- INVITATION SCREEN -->
+<div id="inviteScreen" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:16px;background:var(--cloud);">
+  <div style="max-width:400px;width:100%;">
+    <h2 style="font-family:var(--font-display);text-align:center;margin-bottom:6px;">📬 Invitations</h2>
+    <p style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px;">Your teacher has invited you to a classroom.<br>Review the permissions and decide whether to accept.</p>
+    <div id="inviteList"></div>
+    <div id="noInviteMsg" style="display:none;text-align:center;padding:30px 16px;background:#fff;border-radius:18px;box-shadow:var(--shadow);">
+      <div style="font-size:34px;margin-bottom:10px;">🕐</div>
+      <div style="font-weight:700;margin-bottom:6px;">No invitations yet</div>
+      <div style="font-size:13px;color:var(--ink-soft);">Ask your teacher to send you an invitation to a classroom.</div>
+    </div>
+  </div>
+</div>
+
 <!-- WORKSPACE SCREEN -->
 <section class="screen" id="workspaceScreen">
   <div class="topbar">
@@ -962,17 +977,103 @@ async function doLogin(){
     if(!data.ok){ errEl.textContent=data.error||'Incorrect username or password.'; errEl.style.color='var(--red)'; return; }
     myStudentToken = data.token;
     errEl.textContent='';
-    if(!data.classroomCode){ errEl.textContent="You haven't been assigned to a classroom yet. Ask your teacher."; errEl.style.color='var(--red)'; return; }
-    if(!socket.connected) socket.connect();
-    socket.emit('classroom:join', {code: data.classroomCode, token: myStudentToken}, (res2)=>{
-      if(!res2||!res2.ok){ errEl.textContent=(res2&&res2.error)||'Could not join classroom.'; errEl.style.color='var(--red)'; return; }
-      myStudentId = res2.studentId;
-      myClassroomCode = res2.code;
-      enterWorkspace(data.name, data.avatar||'🙂', res2.classroomName);
-    });
+    myStudentMeta = {name: data.name, avatar: data.avatar||'🙂'};
+    if(data.classroomCode){
+      // Already has a classroom — join directly
+      if(!socket.connected) socket.connect();
+      socket.emit('classroom:join', {code: data.classroomCode, token: myStudentToken}, (res2)=>{
+        if(!res2||!res2.ok){ errEl.textContent=(res2&&res2.error)||'Could not join classroom.'; errEl.style.color='var(--red)'; return; }
+        myStudentId = res2.studentId;
+        myClassroomCode = res2.code;
+        enterWorkspace(data.name, data.avatar||'🙂', res2.classroomName);
+      });
+    } else {
+      // No classroom yet — check for invitations
+      enterInviteScreen(data.name, data.avatar||'🙂');
+    }
   }catch(e){
     btn.disabled=false; errEl.textContent='Could not reach the server.'; errEl.style.color='var(--red)';
   }
+}
+
+
+let myStudentMeta = {name:'', avatar:'🙂'};
+
+async function enterInviteScreen(name, avatar){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('inviteScreen').style.display='flex';
+  document.getElementById('wsAvatar').textContent=avatar;
+  document.getElementById('wsName').textContent=name;
+  await loadInvitations();
+}
+
+async function loadInvitations(){
+  const res = await fetch('/api/invitations/mine',{headers:{'Authorization':'Bearer '+myStudentToken}});
+  const data = await res.json();
+  const list = document.getElementById('inviteList');
+  const noMsg = document.getElementById('noInviteMsg');
+  if(!data.ok||!data.invitations.length){
+    list.innerHTML=''; noMsg.style.display='block'; return;
+  }
+  noMsg.style.display='none';
+  list.innerHTML = data.invitations.map(inv=>`
+    <div class="invite-card" id="inv-${inv.id}" style="background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px;">Invitation from</div>
+      <div style="font-family:var(--font-display);font-size:18px;margin-bottom:3px;">${inv.teacherName}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--teal-dark);margin-bottom:14px;">📚 ${inv.classroomName}</div>
+      <div style="font-size:12.5px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Teacher will be allowed to:</div>
+      <div class="perm-choices" id="perms-${inv.id}">
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">
+          <input type="checkbox" disabled checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">👁 See my work</div><div style="font-size:11px;color:var(--ink-soft);">Always required — cannot be turned off</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="annotate" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">✏️ Draw corrections on my board</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can annotate and highlight your work</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="lock" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">🔒 Lock my board</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can pause your board during class</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="editProfile" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">👤 Edit my name & avatar</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can update your display info</div></div>
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="login-btn" data-accept="${inv.id}" style="flex:2;">Accept & Join Classroom</button>
+        <button data-decline="${inv.id}" style="flex:1;border:1.5px solid var(--line);border-radius:999px;background:none;font-family:var(--font-body);font-weight:700;cursor:pointer;color:var(--ink-soft);">Decline</button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-accept]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const invId=btn.dataset.accept;
+    const card=document.getElementById('inv-'+invId);
+    const checks=card.querySelectorAll('.perm-check');
+    const permissions={annotate:true,lock:true,editProfile:true};
+    checks.forEach(c=>{ permissions[c.name]=c.checked; });
+    btn.textContent='Joining…'; btn.disabled=true;
+    const res=await fetch('/api/invitations/'+invId,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myStudentToken},body:JSON.stringify({status:'accepted',permissions})});
+    const data=await res.json();
+    if(!data.ok){ btn.textContent='Accept & Join Classroom'; btn.disabled=false; return; }
+    localStorage.setItem('slate_perms',JSON.stringify(permissions));
+    // Now join the classroom via socket
+    if(!socket.connected) socket.connect();
+    socket.emit('classroom:join',{code:data.classroomCode,token:myStudentToken},(res2)=>{
+      if(!res2||!res2.ok){ btn.textContent='Accept & Join Classroom'; btn.disabled=false; return; }
+      myStudentId=res2.studentId; myClassroomCode=res2.code;
+      document.getElementById('inviteScreen').style.display='none';
+      enterWorkspace(myStudentMeta.name,myStudentMeta.avatar,data.classroomName);
+    });
+  }));
+  list.querySelectorAll('[data-decline]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const invId=btn.dataset.decline;
+    await fetch('/api/invitations/'+invId,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myStudentToken},body:JSON.stringify({status:'declined'})});
+    document.getElementById('inv-'+invId).remove();
+    if(!document.getElementById('inviteList').children.length){
+      document.getElementById('noInviteMsg').style.display='block';
+    }
+  }));
 }
 
 let board = null;
@@ -1006,8 +1107,10 @@ function enterWorkspace(name, avatar, classroomName){
 document.getElementById('leaveBtn').addEventListener('click', ()=>{
   document.getElementById('workspaceScreen').classList.remove('active');
   document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('inviteScreen').style.display='none';
   document.getElementById('lockBanner').classList.remove('show');
   floatKbd.style.display='none';
+  myStudentMeta={name:'',avatar:'🙂'};
   socket.disconnect();
   myStudentToken=null; myStudentId=null; myClassroomCode=null;
   document.getElementById('sUsername').value='';

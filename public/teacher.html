@@ -89,8 +89,14 @@
   .classroom-card h3{font-size:17px;}
   .muted{color:var(--ink-soft); font-size:12.5px;}
   .invite-row{display:flex; gap:6px; align-items:center; background:var(--coral-bg); padding:6px; border-radius:10px;}
-  .invite-row input{flex:1; border:none; background:transparent; font-size:12px; font-weight:700; color:var(--coral-dark); min-width:0;}
+  .invite-row input{flex:1; border:none; background:transparent; font-size:12px; font-weight:700; color:var(--coral-dark); min-width:0; cursor:pointer;}
   .invite-row button{border:none; background:#fff; border-radius:8px; padding:5px 8px; font-size:11px; font-weight:700;}
+  .invite-row{cursor:pointer; transition:background .15s;}
+  .invite-row:hover{background:var(--coral);}
+  .invite-row:hover input{color:#fff;}
+  .invite-status-pending{background:#FFF3DC;color:#B5791A;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;}
+  .invite-status-accepted{background:var(--teal-bg);color:var(--teal-dark);font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;}
+  .invite-status-none{background:var(--cloud);color:var(--ink-soft);font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;}
 
   .student-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px;}
   .student-card{background:#fff; border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;}
@@ -405,6 +411,23 @@
   </main>
 </div><!-- /app-shell -->
 </div><!-- /appShell wrapper -->
+
+<!-- Invite to Classroom modal -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <h3>📬 Invite Student to Classroom</h3>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">The student will be notified when they next log in. They can accept or decline the invitation.</p>
+    <label>Student</label>
+    <input type="text" id="inviteStudentName" readonly style="background:var(--cloud);font-weight:800;">
+    <label>Choose a classroom</label>
+    <select id="inviteClassSelect" style="width:100%;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);font-family:var(--font-body);font-size:14px;margin-bottom:6px;"></select>
+    <div class="auth-error" id="inviteErr"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="inviteCancel">Cancel</button>
+      <button class="confirm" id="inviteSend">Send Invitation →</button>
+    </div>
+  </div>
+</div>
 
 <!-- Add Student modal -->
 <div class="modal-overlay" id="addStudentModal">
@@ -1255,10 +1278,10 @@ function renderClassrooms(){
       '<div style="display:flex; justify-content:space-between; align-items:center;"><h3>'+c.name+'</h3>'+
         '<span class="'+(c.connected?'connected-badge':'demo-badge')+'">'+(c.connected?'🔌 Live':'Demo')+'</span></div>'+
       '<div class="muted">'+c.students.length+' student'+(c.students.length===1?'':'s')+'</div>'+
-      '<div class="invite-row">'+
+      '<div class="invite-row" data-copylink="'+c.id+'" title="Click anywhere here to copy the invite link">'+
+        '<span style="font-size:13px;">🔗</span>'+
         '<input type="text" readonly value="'+joinUrl(c)+'">'+
-        '<button data-copy="'+c.id+'">Copy</button>'+
-        '<button data-regen="'+c.id+'">↻</button>'+
+        '<span class="copy-feedback" id="cf-'+c.id+'" style="white-space:nowrap;min-width:48px;text-align:center;"></span>'+
       '</div>'+
       '<button class="pillbtn primary" data-open="'+c.id+'" style="width:100%;">Open Live Monitor →</button>'+
     '</div>'
@@ -1266,19 +1289,19 @@ function renderClassrooms(){
   grid.querySelectorAll('[data-open]').forEach(b=> b.addEventListener('click', ()=>{
     currentClassroomId = b.dataset.open; showScreen('monitor');
   }));
-  grid.querySelectorAll('[data-copy]').forEach(b=> b.addEventListener('click', ()=>{
-    const c = classrooms.find(x=>x.id===b.dataset.copy);
-    copyText(joinUrl(c), b);
-  }));
-  // click the readonly input itself to copy
-  grid.querySelectorAll('.invite-row input[readonly]').forEach(inp=> inp.addEventListener('click', ()=>{
-    inp.select();
-    copyText(inp.value, {textContent:'', get:(k)=>'', set:(k,v)=>{}});
-    inp.blur();
-    const hint=document.createElement('span');
-    hint.className='copy-feedback';hint.textContent=' Copied!';
-    inp.parentNode.appendChild(hint);
-    setTimeout(()=>hint.remove(),1500);
+  grid.querySelectorAll('[data-copylink]').forEach(row=> row.addEventListener('click', ()=>{
+    const c = classrooms.find(x=>x.id===row.dataset.copylink);
+    const url = joinUrl(c);
+    const fb = document.getElementById('cf-'+c.id);
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(()=>{
+        if(fb){ fb.textContent='✓ Copied!'; setTimeout(()=>{ fb.textContent=''; }, 1800); }
+      });
+    } else {
+      const ta=document.createElement('textarea'); ta.value=url; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); if(fb){ fb.textContent='✓ Copied!'; setTimeout(()=>{ fb.textContent=''; },1800); } }catch(e){}
+      ta.remove();
+    }
   }));
   grid.querySelectorAll('[data-regen]').forEach(b=> b.addEventListener('click', ()=>{
     const c = classrooms.find(x=>x.id===b.dataset.regen);
@@ -1319,7 +1342,15 @@ let monitorStudent = null;
 function renderMonitor(){
   const c = currentClassroom();
   document.getElementById('monitorTitle').textContent = c.name;
-  document.getElementById('monitorInviteHint').innerHTML = (c.connected?'<span class="connected-badge">🔌 Live</span> ':'<span class="demo-badge">Demo</span> ')+'Invite: '+joinUrl(c);
+  document.getElementById('monitorInviteHint').innerHTML = (c.connected?'<span class="connected-badge">🔌 Live</span> ':'<span class="demo-badge">Demo</span> ')+
+    '<span id="monitorLinkSpan" style="cursor:pointer;font-weight:700;color:var(--coral-dark);text-decoration:underline;text-underline-offset:2px;" title="Click to copy invite link">'+joinUrl(c)+'</span> <span id="monitorCopyFb" class="copy-feedback"></span>';
+  const linkSpan = document.getElementById('monitorLinkSpan');
+  if(linkSpan) linkSpan.addEventListener('click',()=>{
+    const fb=document.getElementById('monitorCopyFb');
+    const url=linkSpan.textContent;
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>{if(fb){fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);}});}
+    else{const ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');if(fb){fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);}}catch(e){}ta.remove();}
+  });
   const grid = document.getElementById('studentGrid');
 
   if(!c.students.length){
@@ -1903,33 +1934,48 @@ let editPwUsername=null;let credsUsername=null;let credsPassword=null;
 
 async function renderStudents(){
   const wrap=document.getElementById('studentsTableWrap');
-  const data=await apiGet('/api/students',authToken);
-  if(!data.ok){wrap.innerHTML='<div class="empty-state"><div class="big">⚠️</div>Could not load student accounts.</div>';return;}
-  const list=data.students;
+  const [studData,invData]=await Promise.all([apiGet('/api/students',authToken),apiGet('/api/invitations/sent',authToken)]);
+  if(!studData.ok){wrap.innerHTML='<div class="empty-state"><div class="big">⚠️</div>Could not load student accounts.</div>';return;}
+  const list=studData.students;
+  const sentInvites=invData.ok?invData.invitations:[];
   if(!list.length){wrap.innerHTML='<div class="empty-state"><div class="big">👥</div>No student accounts yet. Click "+ Add Student" to create one.</div>';return;}
   const rows=list.map(s=>{
-    const c=classrooms.find(x=>x.inviteCode===s.classroomCode||x.serverCode===s.classroomCode);
+    const classroom=classrooms.find(c=>c.inviteCode===s.classroomCode||c.serverCode===s.classroomCode);
+    const pendingInvite=sentInvites.find(i=>i.studentUsername===s.username&&i.status==='pending');
+    const perms=s.permissions||{annotate:true,lock:true,editProfile:true};
+    const permHtml=[
+      `<span class="perm-badge${perms.annotate===false?' denied':''}" title="${perms.annotate===false?'Revoked':'Can annotate'}">${perms.annotate===false?'✏️✗':'✏️'}</span>`,
+      `<span class="perm-badge${perms.lock===false?' denied':''}" title="${perms.lock===false?'Revoked':'Can lock'}">${perms.lock===false?'🔒✗':'🔒'}</span>`,
+      `<span class="perm-badge${perms.editProfile===false?' denied':''}" title="${perms.editProfile===false?'Revoked':'Can edit profile'}">${perms.editProfile===false?'👤✗':'👤'}</span>`
+    ].join(' ');
+    let classroomCell;
+    if(classroom){classroomCell=`<span class="invite-status-accepted">✓ ${classroom.name}</span>`;}
+    else if(pendingInvite){classroomCell=`<span class="invite-status-pending">⏳ Pending: ${pendingInvite.classroomName}</span> <button class="iconbtn" style="font-size:10px;padding:2px 6px;" data-cancelinvite="${pendingInvite.id}" title="Cancel invite">✕</button>`;}
+    else{classroomCell=`<span class="invite-status-none">No classroom</span>`;}
+    const inviteBtn=(!classroom&&!pendingInvite)?`<button class="iconbtn" data-invitestudent="${s.username}" data-invitename="${s.name}" style="color:var(--teal-dark);font-weight:800;">📬 Invite</button>`:'';
     return `<tr>
       <td><span class="st-name"><span style="font-size:15px;">${s.avatar||'🙂'}</span> ${s.name}</span></td>
       <td><span class="st-username">${s.username}</span></td>
-      <td>${c?`<span class="classroom-badge">${c.name}</span>`:`<span class="no-classroom-badge">Unassigned</span>`}</td>
+      <td>${classroomCell}</td>
+      <td>${permHtml}</td>
       <td><div class="st-actions">
-        <button class="iconbtn" data-creds="${s.username}" data-name="${s.name}">📋 Credentials</button>
-        <button class="iconbtn" data-editpw="${s.username}" data-name="${s.name}">🔑 Change PW</button>
-        <button class="iconbtn danger" data-delstu="${s.username}">🗑️</button>
+        ${inviteBtn}
+        <button class="iconbtn" data-creds="${s.username}" data-name="${s.name}" title="View credentials">📋</button>
+        <button class="iconbtn" data-editpw="${s.username}" data-name="${s.name}" title="Change password">🔑</button>
+        <button class="iconbtn danger" data-delstu="${s.username}" title="Delete account">🗑️</button>
       </div></td>
     </tr>`;
   }).join('');
-  wrap.innerHTML=`<table class="students-table"><thead><tr><th>Student</th><th>Username</th><th>Classroom</th><th>Permissions</th><th style="text-align:right">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+  wrap.innerHTML=`<table class="students-table"><thead><tr><th>Student</th><th>Username</th><th>Classroom Status</th><th>Permissions</th><th style="text-align:right">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
   wrap.querySelectorAll('[data-creds]').forEach(b=>b.addEventListener('click',()=>openCredsModal(b.dataset.creds,b.dataset.name)));
   wrap.querySelectorAll('[data-editpw]').forEach(b=>b.addEventListener('click',()=>openEditPw(b.dataset.editpw,b.dataset.name)));
-  wrap.querySelectorAll('.assign-class').forEach(sel=>sel.addEventListener('change',async()=>{
-    const code=sel.value||null;
-    await apiPatch('/api/students/'+sel.dataset.username,{classroomCode:code},authToken);
-  }));
   wrap.querySelectorAll('[data-delstu]').forEach(b=>b.addEventListener('click',async()=>{
     if(!confirm('Delete account for '+b.dataset.delstu+'?'))return;
     await apiDelete('/api/students/'+b.dataset.delstu,authToken);renderStudents();
+  }));
+  wrap.querySelectorAll('[data-invitestudent]').forEach(b=>b.addEventListener('click',()=>openInviteModal(b.dataset.invitestudent,b.dataset.invitename)));
+  wrap.querySelectorAll('[data-cancelinvite]').forEach(b=>b.addEventListener('click',async()=>{
+    await apiDelete('/api/invitations/'+b.dataset.cancelinvite,authToken);renderStudents();
   }));
 }
 document.getElementById('addStudentBtn').addEventListener('click',()=>{
@@ -1955,6 +2001,28 @@ document.getElementById('addStudentSave').addEventListener('click',async()=>{
   document.getElementById('addStudentModal').classList.remove('show');
   // store raw pw for credentials display (server only stores the hash)
   sessionStorage.setItem('pw_'+username,pw);
+  renderStudents();
+});
+
+
+let inviteStudentUsername = null;
+function openInviteModal(username, name){
+  inviteStudentUsername=username;
+  document.getElementById('inviteStudentName').value=name+' ('+username+')';
+  const sel=document.getElementById('inviteClassSelect');
+  sel.innerHTML='<option value="">— choose a classroom —</option>'+classrooms.map(c=>`<option value="${c.serverCode||c.inviteCode}">${c.name}</option>`).join('');
+  document.getElementById('inviteErr').textContent='';
+  document.getElementById('inviteModal').classList.add('show');
+}
+document.getElementById('inviteCancel').addEventListener('click',()=>document.getElementById('inviteModal').classList.remove('show'));
+document.getElementById('inviteSend').addEventListener('click',async()=>{
+  const code=document.getElementById('inviteClassSelect').value;
+  const errEl=document.getElementById('inviteErr');
+  if(!code){errEl.textContent='Please select a classroom.';return;}
+  errEl.textContent='Sending…';errEl.style.color='var(--ink-soft)';
+  const res=await apiPost('/api/invitations',{studentUsername:inviteStudentUsername,classroomCode:code},authToken);
+  if(!res.ok){errEl.textContent=res.error||'Could not send invitation.';errEl.style.color='var(--red)';return;}
+  document.getElementById('inviteModal').classList.remove('show');
   renderStudents();
 });
 

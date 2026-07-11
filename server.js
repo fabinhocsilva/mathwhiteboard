@@ -46,6 +46,7 @@ const teachers   = new Map(); // email   → { id, email, name, passwordHash }
 const students   = new Map(); // username → { id, username, passwordHash, name, avatar, classroomCode }
 const classrooms = new Map(); // code    → { code, name, teacherId, students: Map }
 const sessions   = new Map(); // token   → { type:'teacher'|'student', id, username? }
+const invitations = new Map(); // id → { id, teacherId, teacherName, studentUsername, classroomCode, classroomName, status, createdAt }
 
 function makeToken(type, id, extra) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -168,6 +169,84 @@ app.patch('/api/students/:username', (req, res) => {
 app.delete('/api/students/:username', (req, res) => {
   if (!teacherFromReq(req)) return res.status(401).json({ ok: false });
   students.delete(req.params.username.toLowerCase());
+  res.json({ ok: true });
+});
+
+/* ── Invitation endpoints ── */
+
+// Teacher sends invitation to student
+app.post('/api/invitations', (req, res) => {
+  const teacher = teacherFromReq(req);
+  if (!teacher) return res.status(401).json({ ok: false, error: 'Not authenticated.' });
+  const { studentUsername, classroomCode } = req.body || {};
+  const student = students.get((studentUsername || '').toLowerCase());
+  if (!student) return res.json({ ok: false, error: 'Student not found.' });
+  const room = classrooms.get(classroomCode);
+  if (!room) return res.json({ ok: false, error: 'Classroom not found.' });
+  // Prevent duplicate pending invites
+  const dup = Array.from(invitations.values()).find(i =>
+    i.studentUsername === student.username && i.classroomCode === classroomCode && i.status === 'pending'
+  );
+  if (dup) return res.json({ ok: false, error: 'An invitation to this classroom is already pending.' });
+  const id = uid();
+  invitations.set(id, {
+    id, teacherId: teacher.id, teacherName: teacher.name,
+    studentUsername: student.username, classroomCode, classroomName: room.name,
+    status: 'pending', createdAt: Date.now()
+  });
+  res.json({ ok: true, inviteId: id });
+});
+
+// Teacher views sent invitations
+app.get('/api/invitations/sent', (req, res) => {
+  const teacher = teacherFromReq(req);
+  if (!teacher) return res.status(401).json({ ok: false });
+  const list = Array.from(invitations.values())
+    .filter(i => i.teacherId === teacher.id)
+    .map(i => ({ id: i.id, studentUsername: i.studentUsername, classroomCode: i.classroomCode, classroomName: i.classroomName, status: i.status }));
+  res.json({ ok: true, invitations: list });
+});
+
+// Student views own invitations
+app.get('/api/invitations/mine', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const sess = getSession(token);
+  if (!sess || sess.type !== 'student') return res.status(401).json({ ok: false });
+  const list = Array.from(invitations.values())
+    .filter(i => i.studentUsername === sess.username && i.status === 'pending')
+    .map(i => ({ id: i.id, teacherName: i.teacherName, classroomCode: i.classroomCode, classroomName: i.classroomName }));
+  res.json({ ok: true, invitations: list });
+});
+
+// Student responds to invitation
+app.patch('/api/invitations/:id', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const sess = getSession(token);
+  if (!sess || sess.type !== 'student') return res.status(401).json({ ok: false });
+  const inv = invitations.get(req.params.id);
+  if (!inv || inv.studentUsername !== sess.username) return res.status(403).json({ ok: false });
+  const { status, permissions } = req.body || {};
+  if (!['accepted', 'declined'].includes(status)) return res.json({ ok: false, error: 'Invalid status.' });
+  inv.status = status;
+  if (status === 'accepted') {
+    const student = students.get(sess.username);
+    if (student) {
+      student.classroomCode = inv.classroomCode;
+      if (permissions) student.permissions = permissions;
+    }
+    res.json({ ok: true, classroomCode: inv.classroomCode, classroomName: inv.classroomName });
+  } else {
+    res.json({ ok: true });
+  }
+});
+
+// Teacher cancels a pending invitation
+app.delete('/api/invitations/:id', (req, res) => {
+  const teacher = teacherFromReq(req);
+  if (!teacher) return res.status(401).json({ ok: false });
+  const inv = invitations.get(req.params.id);
+  if (!inv || inv.teacherId !== teacher.id) return res.status(403).json({ ok: false });
+  invitations.delete(req.params.id);
   res.json({ ok: true });
 });
 
