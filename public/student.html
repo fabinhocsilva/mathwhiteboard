@@ -167,6 +167,24 @@
   .login-btn{width:100%; border:none; border-radius:999px; padding:12px; font-family:var(--font-display); font-weight:700; font-size:14px; background:var(--teal-dark); color:#fff; margin-top:14px; cursor:pointer;}
   .login-btn:disabled{background:#C5DDD9; cursor:not-allowed;}
   .auth-hint{font-size:11.5px; color:var(--ink-soft); margin-top:14px; background:var(--cloud); padding:8px 12px; border-radius:12px;}
+
+  /* ── workspace fills all remaining height ── */
+  .workspace-body{flex:1; padding:10px 14px; display:flex; flex-direction:column; gap:8px; overflow:hidden;}
+  .canvas-wrap{position:relative; border-radius:var(--radius-sm); overflow:hidden; background-color:var(--paper);
+    background-image:radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.3px); background-size:22px 22px;
+    border:1px solid var(--line); touch-action:none;}
+  canvas{display:block; width:100%; height:100%;}
+
+  /* ── floating keyboard ── */
+  .fkbd-row{display:flex; flex-wrap:wrap; gap:5px;}
+  .fkey{border:none; background:var(--cloud); border-radius:9px; min-width:34px; height:36px; padding:0 9px;
+    font-size:17px; font-family:var(--font-math); box-shadow:0 1px 3px rgba(0,0,0,.07); cursor:pointer;}
+  .fkey:hover{background:var(--lavender); color:#fff;}
+  .fkey.armed{background:var(--coral-dark); color:#fff; box-shadow:0 0 0 2px var(--coral);}
+  .cat-toggle{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:4px 10px;
+    font-size:12px; font-weight:700; color:var(--ink-soft); cursor:pointer; font-family:var(--font-math);}
+  .cat-toggle.active{background:var(--lavender); border-color:var(--lavender); color:#fff;}
+  .fkbd-label{font-size:10px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em;}
 </style>
 </head>
 <body>
@@ -225,43 +243,42 @@
       <button class="tbtn" id="undoBtn" title="Undo">↩️</button>
       <button class="tbtn" id="redoBtn" title="Redo">↪️</button>
       <button class="tbtn danger" id="clearBtn" title="Clear my work">🗑️</button>
+      <div class="sep"></div>
+      <button class="tbtn" id="kbdToggleBtn" title="Math keyboard">🔢 Math Keys</button>
     </div>
 
-    <div class="math-bar-row">
-      <span class="placement-hint">👉 Tap a sign, then tap the board to place it</span>
-      <div class="layout-toggle" id="layoutToggle" style="margin-left:auto;">
-        <span class="math-bar-label">Math keys</span>
-        <button data-layout="above" class="active">Above board</button>
-        <button data-layout="sides">On the sides</button>
-      </div>
-    </div>
-
-    <div class="above-bars" id="aboveBars"></div>
-
-    <div class="math-bar" id="mathBar">
-      <div class="math-bar-row">
-        <span class="math-bar-label">More signs</span>
-        <select id="signCategory">
-          <option value="frac">Fractions</option>
-          <option value="geo">Geometry / Stats / Calculus</option>
-        </select>
-        <div class="kbd-grid" id="signKeys"></div>
-      </div>
-    </div>
-
-    <div class="workspace-columns" id="workspaceColumns">
-      <div class="side-bar empty" id="sideBarLeft"></div>
-      <div class="canvas-column">
-        <div class="canvas-wrap" id="boardWrap">
-          <canvas id="boardCanvas"></canvas>
-          <div class="cursor-label" id="boardCursor"></div>
-          <div class="lock-banner" id="lockBanner">🔒 Board locked by teacher</div>
-        </div>
-      </div>
-      <div class="side-bar empty" id="sideBarRight"></div>
+    <div class="canvas-wrap" id="boardWrap" style="flex:1;min-height:0;">
+      <canvas id="boardCanvas"></canvas>
+      <div class="cursor-label" id="boardCursor"></div>
+      <div class="lock-banner" id="lockBanner">🔒 Board locked by teacher</div>
     </div>
   </div>
 </section>
+
+<!-- Floating Math Keyboard -->
+<div id="floatKbd" style="display:none;position:fixed;z-index:90;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
+  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
+    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
+    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
+  </div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+    <!-- category toggles -->
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
+      <button class="cat-toggle active" data-cat="ops">+ − × ÷</button>
+      <button class="cat-toggle" data-cat="alg">x y z</button>
+      <button class="cat-toggle" data-cat="sym">π √ °</button>
+      <button class="cat-toggle" data-cat="exp">x² xⁿ</button>
+      <button class="cat-toggle" data-cat="frac">½</button>
+      <button class="cat-toggle" data-cat="geo">∠ Σ ∫</button>
+    </div>
+    <!-- key area — rebuilt when categories change -->
+    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">
+      Tap a key to arm it · tap the board to place it exactly
+    </div>
+  </div>
+</div>
 
 <!-- Fraction modal -->
 <div class="modal-overlay" id="fractionModal">
@@ -425,7 +442,18 @@ function createBoard(cfg){
       ctx.strokeStyle=o.color; ctx.fillStyle=o.color; ctx.lineWidth=o.width; ctx.lineCap='round'; ctx.lineJoin='round';
       if(o.points.length===1){ ctx.beginPath(); ctx.arc(o.points[0].x,o.points[0].y,o.width/2,0,Math.PI*2); ctx.fill(); return; }
       ctx.beginPath(); ctx.moveTo(o.points[0].x,o.points[0].y);
-      for(let i=1;i<o.points.length;i++) ctx.lineTo(o.points[i].x,o.points[i].y);
+      if(o.points.length===2){
+        ctx.lineTo(o.points[1].x,o.points[1].y);
+      } else {
+        /* quadratic bezier through midpoints — eliminates jagged line segments
+           and makes cursive/handwritten strokes look smooth at any speed       */
+        for(let i=1;i<o.points.length-1;i++){
+          const mx=(o.points[i].x+o.points[i+1].x)/2;
+          const my=(o.points[i].y+o.points[i+1].y)/2;
+          ctx.quadraticCurveTo(o.points[i].x,o.points[i].y,mx,my);
+        }
+        ctx.lineTo(o.points[o.points.length-1].x,o.points[o.points.length-1].y);
+      }
       ctx.stroke();
     } else if(o.type==='shape'){
       ctx.strokeStyle=o.color; ctx.lineWidth=o.width; ctx.lineCap='round';
@@ -550,7 +578,18 @@ function createBoard(cfg){
       return;
     }
     if(state._erasing){ eraseNear(x,y,activeOwner()); return; }
-    if(state._activePathId){ const o=getObj(state._activePathId); if(o){ o.points.push({x,y}); render(); } return; }
+    if(state._activePathId){
+      const o=getObj(state._activePathId);
+      if(o){
+        const last=o.points[o.points.length-1];
+        /* only add a point if the pointer moved at least 2px — filters high-freq
+           jitter from touch/stylus without losing curve fidelity at normal speed */
+        if(Math.hypot(x-last.x,y-last.y) >= 2){
+          o.points.push({x,y}); render();
+        }
+      }
+      return;
+    }
     if(state._activeShapeId){ const o=getObj(state._activeShapeId); if(o){ o.x2=x; o.y2=y; render(); } return; }
   }
   function onPointerUp(){
@@ -658,112 +697,105 @@ function createBoard(cfg){
   return boardHandle;
 }
 
-/* ---- Primary categories: always visible, frequently used.
-   Their container (above the board, or split to its sides) is chosen
-   via the layout toggle. Every key arms a sign; the next tap on the
-   board places it exactly there. ---- */
-const PRIMARY_CATEGORIES = [
-  {id:'nums', label:'Numbers', render:()=> Array.from({length:10}, (_,i)=> '<button class="key" data-ins="'+i+'">'+i+'</button>').join('')},
-  {id:'ops', label:'Operators', render:()=>{
-    let html='';
-    [['+','+'],['−','-'],['×','×'],['÷','÷'],['=','=']].forEach(([l,v])=>{ html += '<button class="key" data-ins="'+v+'">'+l+'</button>'; });
-    return html;
-  }},
-  {id:'alg', label:'Algebra', render:()=>{
-    let html='';
-    ['x','y','z','a','b','c'].forEach(s=> html += '<button class="key" data-ins="'+s+'">'+s+'</button>');
-    return html;
-  }},
-  {id:'sym', label:'Symbols', render:()=>{
-    let html='';
-    ['(',')','[',']','{','}','%','$','π','√','∞','≠','≤','≥','°'].forEach(s=> html += '<button class="key" data-ins="'+s+'">'+s+'</button>');
-    return html;
-  }},
-  {id:'exp', label:'Exponents & Subscripts', render:()=>{
-    let html='';
-    [['x²','x^2'],['x³','x^3'],['xⁿ','x^n'],['x₁','x_1'],['x₂','x_2']].forEach(([l,v])=>{ html += '<button class="key" data-ins="'+v+'">'+l+'</button>'; });
-    html += '<button class="key" data-ins="^">^</button><button class="key" data-ins="_">_</button>';
-    return html;
-  }}
-];
-/* Secondary categories: used less often, tucked behind a dropdown */
-const SECONDARY_CATEGORIES = {
-  frac: ()=> '<button class="pillbtn" data-fraction>½ Build a Fraction</button>',
-  geo: ()=>{
-    function group(label, syms){
-      let h='<span class="kbd-subhead">'+label+'</span>';
-      syms.forEach(s=> h += '<button class="key" data-ins="'+s+'">'+s+'</button>');
-      return h;
-    }
-    return group('Geo',['∠','△','⊥','∥']) + group('Stats',['Σ','μ','σ']) + group('Calc',['∫','Δ','∂']);
-  }
+/* ── Floating keyboard ── */
+const FKBD_CATS = {
+  ops:  { label:'Ops',      keys: [['+','+'],['-','-'],['×','×'],['÷','÷'],['=','=']] },
+  alg:  { label:'Algebra',  keys: [['x','x'],['y','y'],['z','z'],['a','a'],['b','b'],['c','c']] },
+  sym:  { label:'Symbols',  keys: [['(','('],[')',')'],['[','['],[']',']'],['%','%'],['π','π'],['√','√'],['∞','∞'],['≠','≠'],['≤','≤'],['≥','≥'],['°','°']] },
+  exp:  { label:'Exponents',keys: [['x²','x^2'],['x³','x^3'],['xⁿ','x^n'],['x₁','x_1'],['x₂','x_2'],['^','^'],['_','_']] },
+  frac: { label:'Frac',     special:'fraction' },
+  geo:  { label:'Geo/Stats',keys: [['∠','∠'],['△','△'],['⊥','⊥'],['∥','∥'],['Σ','Σ'],['μ','μ'],['σ','σ'],['∫','∫'],['Δ','Δ'],['∂','∂']] }
 };
+const activeCats = new Set(['ops']); // ops on by default
 
-function cssEscapeValue(v){
-  if(window.CSS && CSS.escape) return CSS.escape(v);
-  return String(v).replace(/(["\\])/g, '\\$1');
-}
 function syncArmedHighlight(armed){
-  document.querySelectorAll('.key.armed, .pillbtn.armed').forEach(b=>b.classList.remove('armed'));
+  document.querySelectorAll('.fkey.armed').forEach(b=>b.classList.remove('armed'));
   if(!armed) return;
-  if(armed.kind === 'text'){
-    const btn = document.querySelector('.key[data-ins="'+cssEscapeValue(armed.value)+'"]');
+  if(armed.kind==='text'){
+    const esc = window.CSS&&CSS.escape ? CSS.escape(armed.value) : armed.value;
+    const btn = document.querySelector('.fkey[data-ins="'+esc+'"]');
     if(btn) btn.classList.add('armed');
-  } else if(armed.kind === 'fraction'){
-    const btn = document.querySelector('[data-fraction]');
-    if(btn) btn.classList.add('armed');
-  }
-}
-
-function buildPrimaryBars(getBoard){
-  const bars = {};
-  PRIMARY_CATEGORIES.forEach(cat=>{
-    const el = document.createElement('div');
-    el.className = 'category-bar';
-    el.dataset.cat = cat.id;
-    el.innerHTML = '<span class="math-bar-label">'+cat.label+'</span><div class="kbd-grid">'+cat.render()+'</div>';
-    el.addEventListener('click', (e)=>{
-      const insBtn = e.target.closest('[data-ins]');
-      if(!insBtn) return;
-      const board = getBoard();
-      if(window.setFocusedBoard) window.setFocusedBoard(board);
-      board.armSymbol(insBtn.dataset.ins);
-    });
-    bars[cat.id] = el;
-  });
-  return bars;
-}
-
-function applyLayout(mode, bars){
-  const aboveBars = document.getElementById('aboveBars');
-  const sideLeft = document.getElementById('sideBarLeft');
-  const sideRight = document.getElementById('sideBarRight');
-  if(mode === 'sides'){
-    ['nums','ops'].forEach(id=> sideLeft.appendChild(bars[id]));
-    ['alg','sym','exp'].forEach(id=> sideRight.appendChild(bars[id]));
-    sideLeft.classList.remove('empty'); sideRight.classList.remove('empty');
-    aboveBars.classList.add('empty');
   } else {
-    PRIMARY_CATEGORIES.forEach(cat=> aboveBars.appendChild(bars[cat.id]));
-    sideLeft.classList.add('empty'); sideRight.classList.add('empty');
-    aboveBars.classList.remove('empty');
+    const btn = document.querySelector('.fkey[data-frac]');
+    if(btn) btn.classList.add('armed');
   }
 }
 
-function buildSecondaryBar(barEl, getBoard){
-  const signSelect = barEl.querySelector('#signCategory');
-  const signKeys = barEl.querySelector('#signKeys');
-  function renderSigns(){ signKeys.innerHTML = SECONDARY_CATEGORIES[signSelect.value](); }
-  renderSigns();
-  signSelect.addEventListener('change', renderSigns);
-  barEl.addEventListener('click', (e)=>{
-    const board = getBoard();
-    if(window.setFocusedBoard) window.setFocusedBoard(board);
-    const insBtn = e.target.closest('[data-ins]');
-    if(insBtn){ board.armSymbol(insBtn.dataset.ins); return; }
-    if(e.target.closest('[data-fraction]')){ window.openFractionModal(board); return; }
+function buildFloatKbdKeys(){
+  const container = document.getElementById('floatKbdKeys');
+  container.innerHTML = '';
+
+  // numbers row (always)
+  const numRow = document.createElement('div');
+  numRow.className = 'fkbd-row';
+  for(let i=1;i<=9;i++) numRow.innerHTML += '<button class="fkey" data-ins="'+i+'">'+i+'</button>';
+  numRow.innerHTML += '<button class="fkey" data-ins="0">0</button>';
+  container.appendChild(numRow);
+
+  // active categories
+  activeCats.forEach(catId=>{
+    const cat = FKBD_CATS[catId];
+    if(!cat) return;
+    if(cat.special === 'fraction'){
+      const row = document.createElement('div');
+      row.className = 'fkbd-row';
+      row.innerHTML = '<button class="fkey" data-frac style="font-size:15px;flex:1;min-width:80px;">½ Fraction</button>';
+      container.appendChild(row);
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'fkbd-row';
+    cat.keys.forEach(([l,v])=>{ row.innerHTML += '<button class="fkey" data-ins="'+v+'">'+l+'</button>'; });
+    container.appendChild(row);
+  });
+
+  // tap handlers
+  container.querySelectorAll('.fkey[data-ins]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(board){ window.setFocusedBoard(board); board.armSymbol(btn.dataset.ins); }
+    });
+  });
+  container.querySelectorAll('.fkey[data-frac]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ if(board) window.openFractionModal(board); });
   });
 }
+
+/* panel drag — pointer capture on header so it tracks reliably off-element */
+const floatKbd = document.getElementById('floatKbd');
+const floatHandle = document.getElementById('floatKbdHandle');
+let panelDrag = null;
+floatHandle.addEventListener('pointerdown', (e)=>{
+  const r = floatKbd.getBoundingClientRect();
+  panelDrag = {startX:e.clientX, startY:e.clientY, origLeft:r.left, origTop:r.top};
+  try{ floatHandle.setPointerCapture(e.pointerId); }catch(err){}
+  e.preventDefault();
+});
+floatHandle.addEventListener('pointermove', (e)=>{
+  if(!panelDrag) return;
+  let left = panelDrag.origLeft + (e.clientX - panelDrag.startX);
+  let top  = panelDrag.origTop  + (e.clientY - panelDrag.startY);
+  left = Math.max(4, Math.min(window.innerWidth - floatKbd.offsetWidth - 4, left));
+  top  = Math.max(4, Math.min(window.innerHeight - 80, top));
+  floatKbd.style.left = left+'px';
+  floatKbd.style.top  = top+'px';
+});
+floatHandle.addEventListener('pointerup', ()=>{ panelDrag = null; });
+
+/* category toggles */
+document.querySelectorAll('.cat-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const cat = btn.dataset.cat;
+    if(activeCats.has(cat)){ activeCats.delete(cat); btn.classList.remove('active'); }
+    else { activeCats.add(cat); btn.classList.add('active'); }
+    buildFloatKbdKeys();
+    syncArmedHighlight(board ? board.state.armed : null);
+  });
+});
+
+document.getElementById('floatKbdClose').addEventListener('click', ()=>{
+  floatKbd.style.display='none';
+  document.getElementById('kbdToggleBtn').classList.remove('active');
+});
 
 let focusedBoard = null;
 window.setFocusedBoard = (b)=>{ focusedBoard = b; };
@@ -780,7 +812,7 @@ const fracNum = document.getElementById('fracNum');
 const fracDen = document.getElementById('fracDen');
 const fractionModalEl = document.getElementById('fractionModal');
 let fractionTargetBoard = null;
-window.openFractionModal = (board)=>{ fractionTargetBoard=board; fracNum.value=''; fracDen.value=''; fractionModalEl.classList.add('show'); fracNum.focus(); };
+window.openFractionModal = (b)=>{ fractionTargetBoard=b; fracNum.value=''; fracDen.value=''; fractionModalEl.classList.add('show'); fracNum.focus(); };
 document.getElementById('fracCancel').addEventListener('click', ()=> fractionModalEl.classList.remove('show'));
 document.getElementById('fracInsert').addEventListener('click', ()=>{
   if(fractionTargetBoard) fractionTargetBoard.armFraction(fracNum.value, fracDen.value);
@@ -851,7 +883,6 @@ async function doLogin(){
     myStudentToken = data.token;
     errEl.textContent='';
     if(!data.classroomCode){ errEl.textContent="You haven't been assigned to a classroom yet. Ask your teacher."; errEl.style.color='var(--red)'; return; }
-    // join the classroom via socket
     if(!socket.connected) socket.connect();
     socket.emit('classroom:join', {code: data.classroomCode, token: myStudentToken}, (res2)=>{
       if(!res2||!res2.ok){ errEl.textContent=(res2&&res2.error)||'Could not join classroom.'; errEl.style.color='var(--red)'; return; }
@@ -896,6 +927,7 @@ document.getElementById('leaveBtn').addEventListener('click', ()=>{
   document.getElementById('workspaceScreen').classList.remove('active');
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('lockBanner').classList.remove('show');
+  floatKbd.style.display='none';
   socket.disconnect();
   myStudentToken=null; myStudentId=null; myClassroomCode=null;
   document.getElementById('sUsername').value='';
@@ -905,7 +937,7 @@ document.getElementById('leaveBtn').addEventListener('click', ()=>{
 
 let toolbarWired = false;
 function wireToolbar(){
-  if(toolbarWired) return; // listeners only need to attach once; board variable is read fresh each time
+  if(toolbarWired) return;
   toolbarWired = true;
   const toolbar = document.getElementById('toolbar');
   toolbar.addEventListener('click', (e)=>{
@@ -937,17 +969,22 @@ function wireToolbar(){
   imgBtn.addEventListener('click', ()=>{ window.setFocusedBoard(board); imgInput.click(); });
   imgInput.addEventListener('change', ()=>{ if(imgInput.files[0]) board.insertImageFromFile(imgInput.files[0]); imgInput.value=''; });
 
-  const primaryBars = buildPrimaryBars(()=>board);
-  applyLayout('above', primaryBars);
-  buildSecondaryBar(document.getElementById('mathBar'), ()=>board);
-
-  document.getElementById('layoutToggle').addEventListener('click', (e)=>{
-    const btn = e.target.closest('[data-layout]');
-    if(!btn) return;
-    document.querySelectorAll('#layoutToggle [data-layout]').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    applyLayout(btn.dataset.layout, primaryBars);
+  /* floating keyboard toggle */
+  const kbdBtn = document.getElementById('kbdToggleBtn');
+  kbdBtn.addEventListener('click', ()=>{
+    const showing = floatKbd.style.display === 'block';
+    if(showing){ floatKbd.style.display='none'; kbdBtn.classList.remove('active'); }
+    else {
+      floatKbd.style.display='block'; kbdBtn.classList.add('active');
+      buildFloatKbdKeys();
+      if(!floatKbd.style.left){
+        const r = document.getElementById('boardWrap').getBoundingClientRect();
+        floatKbd.style.left = Math.max(12, r.right - 310)+'px';
+        floatKbd.style.top  = Math.max(12, r.top + 12)+'px';
+      }
+    }
   });
+  buildFloatKbdKeys(); // pre-build so first open is instant
 }
 
 })();
