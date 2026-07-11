@@ -115,6 +115,16 @@ footer{
 footer b{color:var(--ink);}
 
 /* ── RESPONSIVE ── */
+[data-theme="dark"]{
+  --cloud:#1B1916;--paper:#201E1A;--grid-dot:#2C2924;
+  --ink:#E5E1D8;--ink-soft:#9A9085;
+  --coral-bg:#261510;--teal-bg:#0E1E1B;
+  --line:#302C26;--shadow:0 3px 14px rgba(0,0,0,.45);
+}
+[data-theme="dark"] body{background:var(--cloud);}
+[data-theme="dark"] nav{background:rgba(27,25,22,.92);}
+[data-theme="dark"] .portal,[data-theme="dark"] .feature{background:#28251F!important;}
+
 @media(max-width:560px){
   nav{padding:14px 20px;}
   .nav-brand{font-size:18px;}
@@ -131,7 +141,13 @@ footer b{color:var(--ink);}
     <a href="teacher.html"><button class="nav-btn teacher">🧑‍🏫 Teacher Login</button></a>
     <a href="student.html"><button class="nav-btn student">🙂 Student Login</button></a>
   </div>
+  <button id="themeToggle" style="border:none;background:transparent;font-size:18px;cursor:pointer;padding:4px 8px;" title="Toggle theme">&#x1F319;</button>
 </nav>
+<script>
+function setTheme(t){document.documentElement.setAttribute("data-theme",t);localStorage.setItem("slate_theme",t);var btn=document.getElementById("themeToggle");if(btn)btn.textContent=t==="dark"?"\u2600\ufe0f":"\U0001f319";}
+setTheme(localStorage.getItem("slate_theme")||"light");
+document.getElementById("themeToggle").addEventListener("click",function(){setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark");});
+</script>
 
 <main class="hero">
 

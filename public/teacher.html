@@ -16,7 +16,26 @@
     --line:#ECE5D6; --radius:18px; --radius-sm:11px;
     --shadow:0 3px 14px rgba(70,50,20,0.08);
     --font-display:'Fredoka',sans-serif; --font-body:'Nunito',sans-serif; --font-math:'Patrick Hand',cursive;
+    --surface:#fff;
   }
+  [data-theme="dark"]{
+    --cloud:#1B1916; --paper:#201E1A; --grid-dot:#2C2924;
+    --ink:#E5E1D8; --ink-soft:#9A9085;
+    --coral-bg:#261510; --teal-bg:#0E1E1B;
+    --line:#302C26; --shadow:0 3px 14px rgba(0,0,0,.45); --surface:#28251F;
+  }
+  [data-theme="dark"] body{background:var(--cloud);}
+  [data-theme="dark"] .app-shell,[data-theme="dark"] #appShell{background:var(--cloud);}
+  [data-theme="dark"] .classroom-card,[data-theme="dark"] .student-card,[data-theme="dark"] .modal,
+  [data-theme="dark"] .panel,[data-theme="dark"] .builder,[data-theme="dark"] .stat-tile,
+  [data-theme="dark"] .assignment-card,[data-theme="dark"] .students-table,
+  [data-theme="dark"] #appShell,[data-theme="dark"] .auth-card{background:var(--surface)!important;}
+  [data-theme="dark"] .sidebar{background:#141210;}
+  [data-theme="dark"] nav.app-bar,[data-theme="dark"] .ws-topbar,[data-theme="dark"] .topbar,[data-theme="dark"] .modal-overlay{background:rgba(20,18,16,.95);}
+  [data-theme="dark"] .toolbar,[data-theme="dark"] .teacher-tools,[data-theme="dark"] .tbtn,[data-theme="dark"] .iconbtn,[data-theme="dark"] .pillbtn:not(.primary):not(.teal):not(.on),[data-theme="dark"] .wbtn,[data-theme="dark"] .kbd-tabs button,[data-theme="dark"] .key,[data-theme="dark"] .invite-row button,[data-theme="dark"] .sidebar-user{background:var(--surface)!important; color:var(--ink)!important;}
+  [data-theme="dark"] .students-table th{background:#1F1C18;}
+  [data-theme="dark"] input,[data-theme="dark"] select,[data-theme="dark"] textarea{background:var(--surface)!important; color:var(--ink)!important; border-color:var(--line)!important;}
+  [data-theme="dark"] .dash-content,[data-theme="dark"] .content{background:var(--cloud);}
   *{box-sizing:border-box;}
   body{margin:0; background:var(--cloud); font-family:var(--font-body); color:var(--ink);}
   button{font-family:var(--font-body); cursor:pointer;}
@@ -221,9 +240,10 @@
   .auth-divider{display:flex;align-items:center;gap:8px;margin:14px 0;}
   .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line);}
   .auth-divider span{font-size:11px;color:var(--ink-soft);font-weight:700;}
-  .sidebar-user{display:flex;align-items:center;gap:8px;background:#fff;border-radius:10px;padding:8px 10px;}
+  .sidebar-user{display:flex;align-items:center;gap:8px;background:#fff;border-radius:10px;padding:8px 10px;min-width:0;}
   .sidebar-user .av{width:28px;height:28px;border-radius:50%;background:var(--coral-bg);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
-  .sidebar-user .info .name{font-size:12px;font-weight:800;}
+  .sidebar-user .info .name{font-size:12px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;}
+  .sidebar-user .info{min-width:0;overflow:hidden;}
   .sidebar-user .info .role{font-size:10px;color:var(--ink-soft);}
   .signout-btn{border:none;background:none;font-size:11.5px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;text-align:left;padding:0;}
 
@@ -239,6 +259,10 @@
   .st-actions{display:flex;gap:5px;justify-content:flex-end;}
   .pw-gen{font-size:11px;font-weight:700;color:var(--lavender);border:none;background:none;cursor:pointer;padding:0;margin-top:5px;display:block;}
   .creds-box{background:var(--cloud);border-radius:10px;padding:10px 12px;font-family:var(--font-math);font-size:13px;line-height:1.9;margin:8px 0;}
+  .perm-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;background:var(--teal-bg);color:var(--teal-dark);}
+  .perm-badge.denied{background:#FCEAEA;color:var(--red);}
+  .copy-feedback{font-size:11px;color:var(--teal-dark);font-weight:800;}
+  .theme-toggle{border:none;background:var(--cloud);border-radius:999px;padding:6px 10px;font-size:16px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -309,7 +333,10 @@
       <button class="navitem" data-screen="assignments">📝 Assignments</button>
       <button class="navitem" data-screen="analytics">📊 Analytics</button>
     </nav>
-    <button class="signout-btn" id="tSignOutBtn">Sign out</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <button class="signout-btn" id="tSignOutBtn">Sign out</button>
+        <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">🌙</button>
+      </div>
   </aside>
 
   <main class="content">
@@ -515,6 +542,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
@@ -1241,6 +1270,16 @@ function renderClassrooms(){
     const c = classrooms.find(x=>x.id===b.dataset.copy);
     copyText(joinUrl(c), b);
   }));
+  // click the readonly input itself to copy
+  grid.querySelectorAll('.invite-row input[readonly]').forEach(inp=> inp.addEventListener('click', ()=>{
+    inp.select();
+    copyText(inp.value, {textContent:'', get:(k)=>'', set:(k,v)=>{}});
+    inp.blur();
+    const hint=document.createElement('span');
+    hint.className='copy-feedback';hint.textContent=' Copied!';
+    inp.parentNode.appendChild(hint);
+    setTimeout(()=>hint.remove(),1500);
+  }));
   grid.querySelectorAll('[data-regen]').forEach(b=> b.addEventListener('click', ()=>{
     const c = classrooms.find(x=>x.id===b.dataset.regen);
     if(c.connected){
@@ -1881,9 +1920,13 @@ async function renderStudents(){
       </div></td>
     </tr>`;
   }).join('');
-  wrap.innerHTML=`<table class="students-table"><thead><tr><th>Student</th><th>Username</th><th>Classroom</th><th style="text-align:right">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+  wrap.innerHTML=`<table class="students-table"><thead><tr><th>Student</th><th>Username</th><th>Classroom</th><th>Permissions</th><th style="text-align:right">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
   wrap.querySelectorAll('[data-creds]').forEach(b=>b.addEventListener('click',()=>openCredsModal(b.dataset.creds,b.dataset.name)));
   wrap.querySelectorAll('[data-editpw]').forEach(b=>b.addEventListener('click',()=>openEditPw(b.dataset.editpw,b.dataset.name)));
+  wrap.querySelectorAll('.assign-class').forEach(sel=>sel.addEventListener('change',async()=>{
+    const code=sel.value||null;
+    await apiPatch('/api/students/'+sel.dataset.username,{classroomCode:code},authToken);
+  }));
   wrap.querySelectorAll('[data-delstu]').forEach(b=>b.addEventListener('click',async()=>{
     if(!confirm('Delete account for '+b.dataset.delstu+'?'))return;
     await apiDelete('/api/students/'+b.dataset.delstu,authToken);renderStudents();
@@ -1960,6 +2003,49 @@ document.querySelectorAll('.navitem').forEach(btn=>btn.addEventListener('click',
   if(name==='assignments')renderAssignments();
   if(name==='analytics')  renderAnalytics();
 }));
+
+/* ── PDF render helper (shared by teacher and question builder) ── */
+async function renderPdfToBoard(file, targetBoard){
+  if(!window.pdfjsLib){ console.warn('pdf.js not loaded'); return; }
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const totalPages=pdf.numPages;
+  let pageNum=1;
+  if(totalPages>1){
+    const p=parseInt(prompt('PDF has '+totalPages+' pages. Which page? (1-'+totalPages+')'),10);
+    if(p>=1&&p<=totalPages) pageNum=p;
+  }
+  const page=await pdf.getPage(pageNum);
+  const viewport=page.getViewport({scale:1.8});
+  const c=document.createElement('canvas');
+  c.width=viewport.width; c.height=viewport.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport}).promise;
+  const dataUrl=c.toDataURL('image/png');
+  const img=new Image();
+  img.onload=()=>{
+    const maxW=Math.min(500, targetBoard.state.objects.reduce((mx,o)=>Math.max(mx, (o.type==='image'?o.x+o.w:0)),0)||500);
+    const ratio=img.naturalHeight/img.naturalWidth;
+    const obj=newObj('image',{x:24,y:24,w:maxW,h:maxW*ratio,src:dataUrl,owner:'teacher'});
+    obj._imgEl=img;
+    targetBoard.state.objects.push(obj);
+    targetBoard.render();
+    if(targetBoard.opts&&targetBoard.opts.onSync) targetBoard.opts.onSync(targetBoard.state.objects);
+  };
+  img.src=dataUrl;
+}
+
+
+/* ── Dark / Light mode ── */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('slate_theme',t);
+  const btn=document.getElementById('themeToggle');
+  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
+}
+setTheme(localStorage.getItem('slate_theme')||'light');
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+});
 
 /* ── Boot: check saved token, then show login or dashboard ── */
 (async()=>{

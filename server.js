@@ -60,7 +60,7 @@ function summarize(room) {
     students: Array.from(room.students.values()).map(s => ({
       id: s.id, name: s.name, avatar: s.avatar,
       objects: s.objects, locked: s.locked, status: s.status,
-      canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight
+      canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight, permissions: s.permissions
     }))
   };
 }
@@ -202,7 +202,7 @@ io.on('connection', (socket) => {
     const studentAccount = students.get(sess.username);
     const id = uid();
     const student = { id, name: studentAccount ? studentAccount.name : 'Student', avatar: studentAccount ? studentAccount.avatar : '🙂',
-      objects: [], locked: false, status: 'active', canvasWidth: 1100, canvasHeight: 500, socketId: socket.id };
+      objects: [], locked: false, status: 'active', canvasWidth: 1100, canvasHeight: 500, socketId: socket.id, permissions: {annotate:true,lock:true,editProfile:true} };
     room.students.set(id, student);
     socket.join('classroom:' + code);
     socket.data.role = 'student'; socket.data.code = code; socket.data.studentId = id;
@@ -235,6 +235,7 @@ io.on('connection', (socket) => {
   socket.on('teacher:lock', ({ code, studentId, locked }) => {
     const room = classrooms.get(code); if (!room) return;
     const s = room.students.get(studentId); if (!s) return;
+    if (locked && s.permissions && s.permissions.lock === false) return; // student revoked
     s.locked = locked; s.status = locked ? 'locked' : 'active';
     io.to(s.socketId).emit('teacher:command', { type: 'lock', locked });
     io.to('teacher:' + code).emit('roster:update', summarize(room));
@@ -243,6 +244,7 @@ io.on('connection', (socket) => {
   socket.on('teacher:annotate', ({ code, studentId, objects }) => {
     const room = classrooms.get(code); if (!room) return;
     const s = room.students.get(studentId); if (!s) return;
+    if (s.permissions && s.permissions.annotate === false) return; // student revoked
     s.objects = objects;
     io.to(s.socketId).emit('teacher:command', { type: 'objects', objects });
     io.to('teacher:' + code).emit('student:objects', { code, studentId, objects });
@@ -254,6 +256,14 @@ io.on('connection', (socket) => {
     io.to(s.socketId).emit('teacher:command', { type: 'hint', text });
   });
 
+  socket.on('student:permissions', ({ studentId, code, permissions }) => {
+    const room = classrooms.get(code); if (!room) return;
+    const s = room.students.get(studentId); if (!s) return;
+    s.permissions = permissions;
+    io.to('teacher:' + code).emit('roster:update', summarize(room));
+  });
+
+  // Respect student permissions on annotate + lock
   socket.on('disconnect', () => {
     if (socket.data.role === 'student' && socket.data.code) {
       const room = classrooms.get(socket.data.code);

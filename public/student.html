@@ -168,6 +168,45 @@
   .login-btn:disabled{background:#C5DDD9; cursor:not-allowed;}
   .auth-hint{font-size:11.5px; color:var(--ink-soft); margin-top:14px; background:var(--cloud); padding:8px 12px; border-radius:12px;}
 
+  /* ── Dark mode ── */
+  [data-theme="dark"]{
+    --cloud:#1B1916; --paper:#201E1A; --grid-dot:#2C2924;
+    --ink:#E5E1D8; --ink-soft:#9A9085;
+    --coral-bg:#261510; --teal-bg:#0E1E1B;
+    --line:#302C26; --shadow:0 3px 14px rgba(0,0,0,.45);
+  }
+  [data-theme="dark"] body{background:var(--cloud);}
+  [data-theme="dark"] .auth-screen{background:var(--cloud);}
+  [data-theme="dark"] .auth-card,[data-theme="dark"] #floatKbd{background:#28251F!important; color:var(--ink)!important;}
+  [data-theme="dark"] .auth-card input{background:#201E1A!important; color:var(--ink)!important; border-color:var(--line)!important;}
+  [data-theme="dark"] .ws-topbar{background:#201E1A!important; border-color:var(--line);}
+  [data-theme="dark"] .toolbar{background:#28251F!important;}
+  [data-theme="dark"] .tbtn,[data-theme="dark"] .swatch,[data-theme="dark"] .wbtn{background:#201E1A!important; color:var(--ink)!important;}
+  [data-theme="dark"] .tbtn.active{background:var(--lavender)!important; color:#fff!important;}
+  [data-theme="dark"] .fkey,[data-theme="dark"] .cat-toggle{background:#201E1A!important; color:var(--ink)!important;}
+  [data-theme="dark"] .cat-toggle.active{background:var(--lavender)!important; color:#fff!important;}
+  [data-theme="dark"] .lock-banner{background:rgba(229,72,77,.94);}
+  [data-theme="dark"] select{background:#201E1A!important; color:var(--ink)!important;}
+
+  /* ── Theme + settings buttons ── */
+  .theme-btn{border:none;background:transparent;font-size:16px;cursor:pointer;padding:4px 7px;border-radius:8px;}
+  .theme-btn:hover{background:var(--teal-bg);}
+  .settings-btn{border:none;background:transparent;font-size:16px;cursor:pointer;padding:4px 7px;border-radius:8px;}
+  .settings-btn:hover{background:var(--teal-bg);}
+
+  /* ── Permissions modal ── */
+  .perm-section h4{font-family:var(--font-display);font-size:14px;margin-bottom:10px;}
+  .perm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .perm-row:last-child{border-bottom:none;}
+  .perm-label{font-size:13px;font-weight:700;}
+  .perm-desc{font-size:11px;color:var(--ink-soft);}
+  .toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0;}
+  .toggle-switch input{opacity:0;width:0;height:0;}
+  .toggle-slider{position:absolute;inset:0;background:var(--line);border-radius:999px;cursor:pointer;transition:.2s;}
+  .toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+  .toggle-switch input:checked + .toggle-slider{background:var(--teal-dark);}
+  .toggle-switch input:checked + .toggle-slider:before{transform:translateX(18px);}
+
   /* ── workspace fills all remaining height ── */
   .workspace-body{flex:1; padding:10px 14px; display:flex; flex-direction:column; gap:8px; overflow:hidden;}
   .canvas-wrap{position:relative; border-radius:var(--radius-sm); overflow:hidden; background-color:var(--paper);
@@ -217,6 +256,8 @@
     </div>
     <div class="topbar-right">
       <span class="conn-dot" id="connDot">Connecting…</span>
+      <button class="settings-btn" id="permSettingsBtn" title="Privacy & Permissions">⚙️</button>
+      <button class="theme-btn" id="themeToggle" title="Toggle dark/light mode">🌙</button>
       <span class="me-pill"><span class="av" id="wsAvatar"></span><span id="wsName"></span></span>
     </div>
   </div>
@@ -244,6 +285,8 @@
       <button class="tbtn" id="redoBtn" title="Redo">↪️</button>
       <button class="tbtn danger" id="clearBtn" title="Clear my work">🗑️</button>
       <div class="sep"></div>
+      <button class="tbtn" id="pdfUploadBtn" title="Upload PDF">📄 PDF</button>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none">
       <button class="tbtn" id="kbdToggleBtn" title="Math keyboard">🔢 Math Keys</button>
     </div>
 
@@ -280,6 +323,39 @@
   </div>
 </div>
 
+<!-- Permissions modal -->
+<div class="modal-overlay" id="permModal" style="z-index:60;">
+  <div class="modal" style="max-width:400px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="margin:0;">⚙️ Privacy & Permissions</h3>
+      <button class="iconbtn" id="permClose">✖</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">Choose what your teacher can do on your account. You can change these any time.</p>
+    <div class="perm-section">
+      <div class="perm-row">
+        <div><div class="perm-label">👁 See my work</div><div class="perm-desc">Teacher can view your whiteboard in real time</div></div>
+        <label class="toggle-switch"><input type="checkbox" checked disabled><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">✏️ Draw on my board</div><div class="perm-desc">Teacher can annotate and correct your work</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permAnnotate" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">🔒 Lock my board</div><div class="perm-desc">Teacher can pause your board when needed</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permLock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">👤 Edit my profile</div><div class="perm-desc">Teacher can change your display name and avatar</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permEditProfile" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="cancel" id="permCancel">Cancel</button>
+      <button class="confirm" id="permSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Fraction modal -->
 <div class="modal-overlay" id="fractionModal">
   <div class="modal">
@@ -295,6 +371,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
@@ -848,6 +926,8 @@ socket.on('connect_error', ()=>{ connDot.textContent='Disconnected'; connDot.cla
 socket.on('teacher:command', (cmd)=>{
   if(!board) return;
   if(cmd.type === 'lock'){
+    const perms=JSON.parse(localStorage.getItem('slate_perms')||'{}');
+    if(cmd.locked && perms.lock===false){ return; } // student revoked lock permission
     board.setLocked(cmd.locked);
     document.getElementById('lockBanner').classList.toggle('show', cmd.locked);
   } else if(cmd.type === 'objects'){
@@ -986,6 +1066,87 @@ function wireToolbar(){
   });
   buildFloatKbdKeys(); // pre-build so first open is instant
 }
+
+
+/* ── Theme toggle ── */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('slate_theme',t);
+  const btn=document.getElementById('themeToggle');
+  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
+}
+setTheme(localStorage.getItem('slate_theme')||'light');
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+});
+
+/* ── Permissions modal ── */
+let savedPerms={annotate:true,lock:true,editProfile:true};
+function loadPerms(){
+  try{ const p=JSON.parse(localStorage.getItem('slate_perms')); if(p) savedPerms=p; }catch(e){}
+  document.getElementById('permAnnotate').checked=savedPerms.annotate;
+  document.getElementById('permLock').checked=savedPerms.lock;
+  document.getElementById('permEditProfile').checked=savedPerms.editProfile;
+}
+function savePerms(){
+  savedPerms={
+    annotate:document.getElementById('permAnnotate').checked,
+    lock:document.getElementById('permLock').checked,
+    editProfile:document.getElementById('permEditProfile').checked
+  };
+  localStorage.setItem('slate_perms',JSON.stringify(savedPerms));
+  if(myStudentId&&socket.connected) socket.emit('student:permissions',{studentId:myStudentId,code:myClassroomCode,permissions:savedPerms});
+}
+document.getElementById('permSettingsBtn').addEventListener('click',()=>{ loadPerms(); document.getElementById('permModal').classList.add('show'); });
+document.getElementById('permClose').addEventListener('click',()=>document.getElementById('permModal').classList.remove('show'));
+document.getElementById('permCancel').addEventListener('click',()=>document.getElementById('permModal').classList.remove('show'));
+document.getElementById('permSave').addEventListener('click',()=>{ savePerms(); document.getElementById('permModal').classList.remove('show'); });
+
+/* ── PDF upload on student board ── */
+document.getElementById('pdfUploadBtn').addEventListener('click',()=>document.getElementById('pdfInput').click());
+document.getElementById('pdfInput').addEventListener('change',async(e)=>{
+  const file=e.target.files[0]; if(!file||!board) return;
+  e.target.value='';
+  if(!window.pdfjsLib){ alert('PDF viewer is loading… try again in a moment.'); return; }
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const total=pdf.numPages;
+  let pageNum=1;
+  if(total>1){
+    const p=parseInt(prompt('PDF has '+total+' pages. Which page to place? (1-'+total+')'),10);
+    if(p>=1&&p<=total) pageNum=p;
+  }
+  const page=await pdf.getPage(pageNum);
+  const viewport=page.getViewport({scale:1.8});
+  const c=document.createElement('canvas');
+  c.width=viewport.width; c.height=viewport.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport}).promise;
+  const dataUrl=c.toDataURL('image/png');
+  const img=new Image();
+  img.onload=()=>{
+    const wrap=document.getElementById('boardWrap');
+    const maxW=Math.min(480,wrap.clientWidth*0.85);
+    const ratio=img.naturalHeight/img.naturalWidth;
+    const obj=newObj('image',{x:30,y:30,w:maxW,h:maxW*ratio,src:dataUrl,owner:'student'});
+    obj._imgEl=img;
+    board.state.objects.push(obj);
+    board.render();
+  };
+  img.src=dataUrl;
+});
+
+/* ── Paste screenshot / image from clipboard ── */
+window.addEventListener('paste',(e)=>{
+  if(!board||board.state.locked) return;
+  const tag=(document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea') return;
+  const items=Array.from(e.clipboardData.items);
+  const imgItem=items.find(it=>it.type.startsWith('image/'));
+  if(!imgItem) return;
+  e.preventDefault();
+  const blob=imgItem.getAsFile();
+  board.insertImageFromFile(blob);
+});
 
 })();
 </script>
