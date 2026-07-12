@@ -8,8 +8,10 @@
 const express = require('express');
 const http    = require('http');
 const path    = require('path');
+const fs      = require('fs');
 const crypto  = require('crypto');
 const { Server } = require('socket.io');
+const DATA_FILE = path.join(__dirname, 'slate-data.json');
 
 const app    = express();
 app.use(express.json());
@@ -47,6 +49,41 @@ const students   = new Map(); // username → { id, username, passwordHash, name
 const classrooms = new Map(); // code    → { code, name, teacherId, students: Map }
 const sessions   = new Map(); // token   → { type:'teacher'|'student', id, username? }
 const invitations = new Map(); // id → { id, teacherId, teacherName, studentUsername, classroomCode, classroomName, status, createdAt }
+
+/* ── Persist to disk so student work survives server restarts ── */
+function saveState(){
+  try{
+    const data={
+      teachers:Array.from(teachers.values()).map(t=>({...t})),
+      students:Array.from(students.values()).map(s=>({...s})),
+      classrooms:Array.from(classrooms.values()).map(c=>({
+        code:c.code,name:c.name,teacherId:c.teacherId,
+        students:Array.from(c.students.values()).map(s=>({...s,socketId:null,status:'offline'}))
+      })),
+      invitations:Array.from(invitations.values()).map(i=>({...i}))
+    };
+    fs.writeFileSync(DATA_FILE,JSON.stringify(data));
+  }catch(e){ console.warn('Save error:',e.message); }
+}
+function loadState(){
+  if(!fs.existsSync(DATA_FILE)) return;
+  try{
+    const data=JSON.parse(fs.readFileSync(DATA_FILE,'utf8'));
+    (data.teachers||[]).forEach(t=>teachers.set(t.email,t));
+    (data.students||[]).forEach(s=>students.set(s.username,s));
+    (data.classrooms||[]).forEach(c=>{
+      const room={...c,students:new Map()};
+      (c.students||[]).forEach(s=>room.students.set(s.id,{...s}));
+      classrooms.set(c.code,room);
+    });
+    (data.invitations||[]).forEach(i=>invitations.set(i.id,i));
+    console.log('State loaded —',teachers.size,'teachers,',students.size,'students,',classrooms.size,'classrooms');
+  }catch(e){ console.warn('Load error:',e.message); }
+}
+loadState();
+setInterval(saveState,30000); // save every 30s
+process.on('SIGTERM',()=>{saveState();process.exit(0);});
+process.on('SIGINT',()=>{saveState();process.exit(0);});
 
 function makeToken(type, id, extra) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -250,6 +287,13 @@ app.delete('/api/invitations/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ── Public whiteboard info (no auth required — just name from code) ── */
+app.get('/api/whiteboard/:code', (req, res) => {
+  const room = classrooms.get(req.params.code.toUpperCase());
+  if (!room) return res.json({ ok: false, error: 'Not found.' });
+  res.json({ ok: true, code: room.code, name: room.name });
+});
+
 /* ── WebSocket events ── */
 io.on('connection', (socket) => {
 
@@ -274,8 +318,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('classroom:join', ({ code, token }, cb) => {
-    const sess = getSession(token);
-    if (!sess || sess.type !== 'student') { cb && cb({ ok: false, error: 'Please log in first.' }); return; }
+    const sess = token ? getSession(token) : null;
+    if (token && (!sess || sess.type !== 'student')) { cb && cb({ ok: false, error: 'Please log in first.' }); return; }
+    if (!sess && !token) { cb && cb({ ok: false, error: 'Please log in or use the quick join link.' }); return; }
     const room = classrooms.get(code);
     if (!room) { cb && cb({ ok: false, error: 'Classroom not found.' }); return; }
     const studentAccount = students.get(sess.username);
@@ -309,6 +354,9 @@ io.on('connection', (socket) => {
     if (canvasHeight) s.canvasHeight = canvasHeight;
     s.status = s.locked ? 'locked' : 'active';
     io.to('teacher:' + code).emit('student:objects', { code, studentId: id, objects, canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight });
+    // Debounced save: write to disk 5s after last sync (not on every sync — too frequent)
+    clearTimeout(io._saveTimer);
+    io._saveTimer = setTimeout(saveState, 5000);
   });
 
   socket.on('teacher:lock', ({ code, studentId, locked }) => {
@@ -343,6 +391,43 @@ io.on('connection', (socket) => {
   });
 
   // Respect student permissions on annotate + lock
+  /* ── stroke:live relay: teacher sees student drawing at ~60fps ── */
+  socket.on('stroke:live', (data)=>{
+    const code=socket.data.code;
+    if(!code||socket.data.role!=='student') return;
+    // Relay immediately — no storage needed, this is ephemeral display data
+    io.to('teacher:'+code).emit('stroke:live',{
+      ...data, studentId:socket.data.studentId, code
+    });
+  });
+
+  /* ── Quick join: student opens share link, enters just their name ── */
+  socket.on('whiteboard:quickjoin', ({code, name, sessionKey}, cb)=>{
+    const room=classrooms.get(code);
+    if(!room){cb&&cb({ok:false,error:'Whiteboard not found. Check the link and try again.'});return;}
+    name=(name||'').trim();
+    if(!name){cb&&cb({ok:false,error:'Please enter your name.'});return;}
+    // Reconnect: if same sessionKey seen before, restore their work
+    let student=sessionKey ? Array.from(room.students.values()).find(s=>s.sessionKey===sessionKey) : null;
+    // Also try matching by name (for browser reload without sessionKey)
+    if(!student) student=Array.from(room.students.values()).find(s=>s.name===name&&!s.socketId);
+    if(!student){
+      const id=uid();
+      student={id,name,avatar:'🙂',sessionKey:sessionKey||uid(),
+        objects:[],locked:false,status:'active',canvasWidth:1100,canvasHeight:500,
+        socketId:socket.id,permissions:{annotate:true,lock:true,editProfile:true},isGuest:true};
+      room.students.set(id,student);
+    } else {
+      student.status='active'; student.socketId=socket.id;
+      if(sessionKey) student.sessionKey=sessionKey;
+    }
+    socket.join('classroom:'+code);
+    socket.data.role='student'; socket.data.code=code; socket.data.studentId=student.id;
+    io.to('teacher:'+code).emit('roster:update',summarize(room));
+    cb&&cb({ok:true,studentId:student.id,classroomName:room.name,code,
+            sessionKey:student.sessionKey,objects:student.objects||[]});
+  });
+
   socket.on('disconnect', () => {
     if (socket.data.role === 'student' && socket.data.code) {
       const room = classrooms.get(socket.data.code);

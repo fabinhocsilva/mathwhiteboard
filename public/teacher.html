@@ -412,6 +412,28 @@
 </div><!-- /app-shell -->
 </div><!-- /appShell wrapper -->
 
+<!-- Email Invite modal -->
+<div class="modal-overlay" id="emailInviteModal">
+  <div class="modal">
+    <h3>📧 Invite by Email</h3>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">
+      Enter the student's email. Clicking "Open Email" will open your email client with the invite pre-written — you just hit Send.
+      No email account needed by this app.
+    </p>
+    <label>Student email address</label>
+    <input type="email" id="emailInviteAddr" placeholder="student@school.com">
+    <div id="emailInvitePreview" style="display:none;background:var(--cloud);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.7;"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="emailInviteCancel">Cancel</button>
+      <button class="confirm" id="emailInviteOpen" style="background:var(--teal-dark);">📬 Open Email Client</button>
+    </div>
+    <p style="font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px;">Or copy the link and paste it in any messaging app</p>
+    <div class="invite-row" id="emailInviteLink" data-copylinkdirect style="cursor:pointer;margin-top:6px;" title="Click to copy">
+      <span>🔗</span><input type="text" readonly id="emailInviteLinkInput"><span id="emailInviteCopyFb" class="copy-feedback" style="white-space:nowrap;min-width:50px;text-align:center;"></span>
+    </div>
+  </div>
+</div>
+
 <!-- Invite to Classroom modal -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal">
@@ -1211,6 +1233,41 @@ socket.on('connect', ()=>{ serverStatus.textContent='🟢 Server connected'; ser
 socket.on('disconnect', ()=>{ serverStatus.textContent='🔴 Server disconnected'; serverStatus.className='server-status offline'; });
 socket.on('connect_error', ()=>{ serverStatus.textContent='🔴 Couldn\u2019t reach server'; serverStatus.className='server-status offline'; });
 
+/* ── stroke:live — see student pen strokes at ~60fps without waiting for full sync ── */
+socket.on('stroke:live', data=>{
+  const c=classrooms.find(x=>x.connected&&(x.serverCode===data.code||x.inviteCode===data.code));
+  if(!c) return;
+  const s=(c.students||[]).find(x=>x.id===data.studentId);
+  if(!s) return;
+  /* Update thumbnail */
+  if(s.__board){
+    let path=s.__board.state.objects.find(o=>o.id===data.pathId);
+    if(!path){
+      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,
+            owner:data.owner||'student',bornAt:Date.now()};
+      if(data._alpha) path._alpha=data._alpha;
+      s.__board.state.objects.push(path);
+    }
+    path.points=data.points;
+    if(s.__board.setStableValid) s.__board.setStableValid(false);
+    s.__board.render();
+  }
+  /* Update open annotate modal (teacher sees live strokes while modal is open) */
+  const annotateModalEl=document.getElementById('monitorModal');
+  const modalOpen=annotateModalEl&&annotateModalEl.classList.contains('show');
+  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
+    let path=annotateBoard.state.objects.find(o=>o.id===data.pathId);
+    if(!path){
+      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,owner:data.owner||'student'};
+      if(data._alpha) path._alpha=data._alpha;
+      annotateBoard.state.objects.push(path);
+    }
+    path.points=data.points;
+    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
+    annotateBoard.render();
+  }
+});
+
 socket.on('roster:update', (data)=>{
   const c = classrooms.find(x=>x.connected && x.inviteCode===data.code);
   if(!c) return;
@@ -1255,6 +1312,7 @@ function showScreen(name){
 }
 
 const classroomSelect = document.getElementById('classroomSelect');
+window.classrooms = classrooms; // accessible for debugging and external scripts
 function refreshClassroomSelect(){
   classroomSelect.innerHTML = classrooms.map(c=> '<option value="'+c.id+'"'+(c.id===currentClassroomId?' selected':'')+'>'+c.name+'</option>').join('');
 }
@@ -1283,9 +1341,16 @@ function renderClassrooms(){
         '<input type="text" readonly value="'+joinUrl(c)+'">'+
         '<span class="copy-feedback" id="cf-'+c.id+'" style="white-space:nowrap;min-width:48px;text-align:center;"></span>'+
       '</div>'+
-      '<button class="pillbtn primary" data-open="'+c.id+'" style="width:100%;">Open Live Monitor →</button>'+
+      '<div style="display:flex;gap:7px;">' +
+        '<button class="pillbtn primary" data-open="'+c.id+'" style="flex:2">Open Live Monitor →</button>'+
+        '<button class="pillbtn" data-emailinvite="'+c.id+'" style="flex:1;" title="Invite by email">📧 Invite</button>'+
+      '</div>'+
     '</div>'
   ).join('');
+  grid.querySelectorAll('[data-emailinvite]').forEach(b=>b.addEventListener('click',()=>{
+    const c=classrooms.find(x=>x.id===b.dataset.emailinvite);
+    if(c) openEmailInvite(c);
+  }));
   grid.querySelectorAll('[data-open]').forEach(b=> b.addEventListener('click', ()=>{
     currentClassroomId = b.dataset.open; showScreen('monitor');
   }));
@@ -2015,6 +2080,53 @@ function openInviteModal(username, name){
   document.getElementById('inviteModal').classList.add('show');
 }
 document.getElementById('inviteCancel').addEventListener('click',()=>document.getElementById('inviteModal').classList.remove('show'));
+
+/* ── Email invite via mailto: ── */
+let _emailInviteClassroom=null;
+function openEmailInvite(c){
+  _emailInviteClassroom=c;
+  const url=joinUrl(c);
+  document.getElementById('emailInviteLinkInput').value=url;
+  document.getElementById('emailInviteAddr').value='';
+  document.getElementById('emailInvitePreview').style.display='none';
+  document.getElementById('emailInviteModal').classList.add('show');
+  setTimeout(()=>document.getElementById('emailInviteAddr').focus(),80);
+}
+document.getElementById('emailInviteCancel').addEventListener('click',()=>document.getElementById('emailInviteModal').classList.remove('show'));
+document.getElementById('emailInviteAddr').addEventListener('input',()=>{
+  const email=document.getElementById('emailInviteAddr').value.trim();
+  const c=_emailInviteClassroom;
+  if(!c||!email) return;
+  const url=joinUrl(c);
+  document.getElementById('emailInvitePreview').style.display='block';
+  document.getElementById('emailInvitePreview').innerHTML=
+    '<b>Subject:</b> You\'re invited to '+c.name+' on Slate<br>'+
+    '<b>Body:</b> Open this link to join and start working: '+url;
+});
+document.getElementById('emailInviteOpen').addEventListener('click',()=>{
+  const email=document.getElementById('emailInviteAddr').value.trim();
+  const c=_emailInviteClassroom; if(!c||!email) return;
+  const url=joinUrl(c);
+  const sub=encodeURIComponent('Invitation to join '+c.name+' on Slate');
+  const body=encodeURIComponent(
+    'Hello!\n\nYou have been invited to join '+c.name+' on Slate.\n\n'+
+    'Just click the link below, type your name, and you can start working right away:\n\n'+
+    url+'\n\nNo app to download, no account required.\n\nSee you in class!'
+  );
+  window.open('mailto:'+encodeURIComponent(email)+'?subject='+sub+'&body='+body);
+});
+document.getElementById('emailInviteLink').addEventListener('click',()=>{
+  const inp=document.getElementById('emailInviteLinkInput');
+  const fb=document.getElementById('emailInviteCopyFb');
+  const url=inp.value;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(()=>{fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);});
+  } else {
+    const ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);}catch(e){}
+    ta.remove();
+  }
+});
 document.getElementById('inviteSend').addEventListener('click',async()=>{
   const code=document.getElementById('inviteClassSelect').value;
   const errEl=document.getElementById('inviteErr');

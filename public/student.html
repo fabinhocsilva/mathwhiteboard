@@ -232,8 +232,24 @@
 <div class="auth-screen" id="loginScreen">
   <div class="auth-card">
     <div class="auth-logo">📚</div>
-    <h1>Student Sign In</h1>
-    <p class="sub">Enter the username and password your teacher gave you</p>
+    <h1 id="loginTitle">Student Sign In</h1>
+    <p class="sub" id="loginSubtitle">Enter the username and password your teacher gave you</p>
+    <!-- Quick join — shown when ?code= is in the URL (teacher shared link) -->
+    <div id="quickJoinSection" style="display:none;">
+      <div style="background:var(--teal-bg);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;color:var(--teal-dark);text-transform:uppercase;letter-spacing:.04em;">Joining</div>
+        <div style="font-weight:800;font-size:15px;color:var(--teal-dark);" id="quickJoinRoomName">Whiteboard</div>
+      </div>
+      <label>Your name</label>
+      <input type="text" id="quickJoinName" placeholder="e.g. Alex" autocomplete="name">
+      <div class="auth-error" id="quickJoinError"></div>
+      <button class="login-btn" id="quickJoinBtn" style="background:var(--teal-dark);">Join Whiteboard →</button>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0;">
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+        <span style="font-size:11px;color:var(--ink-soft);font-weight:700;">have an account?</span>
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+      </div>
+    </div>
     <label>Username</label>
     <input type="text" id="sUsername" placeholder="e.g. alex_m" autocomplete="username">
     <label>Password</label>
@@ -464,11 +480,18 @@ function createBoard(cfg){
   };
   function dpr(){ return Math.max(1, window.devicePixelRatio||1); }
   function resize(){
-    const r = wrap.getBoundingClientRect(); const d = dpr();
+    const r = wrap.getBoundingClientRect(); const d = dpr(); const sc = opts.viewScale||1;
     canvas.width = Math.round(r.width*d); canvas.height = Math.round(r.height*d);
     canvas.style.width = r.width+'px'; canvas.style.height = r.height+'px';
-    ctx.setTransform(d,0,0,d,0,0); render();
+    ctx.setTransform(d*sc,0,0,d*sc,0,0);
+    stableLayer.width = canvas.width; stableLayer.height = canvas.height;
+    stableValid = false; render();
   }
+  // Offscreen stable layer — caches all completed objects so render() during
+  // active drawing only needs to composite the bg + the current stroke.
+  const stableLayer = document.createElement('canvas');
+  let stableValid = false;
+
   const ro = new ResizeObserver(resize); ro.observe(wrap);
 
   function snapshot(){ return JSON.stringify(state.objects, (k,v)=> k==='_imgEl' ? undefined : v); }
@@ -480,12 +503,8 @@ function createBoard(cfg){
   function pushHistory(){ state.history.push(snapshot()); if(state.history.length>50) state.history.shift(); state.future=[]; }
   function undo(){ if(!state.history.length) return; state.future.push(snapshot()); restore(state.history.pop()); state.selectedId=null; commit(); }
   function redo(){ if(!state.future.length) return; state.history.push(snapshot()); restore(state.future.pop()); commit(); }
-  function commit(){ render(); scheduleSave(); if(opts.onSync) opts.onSync(state.objects); }
-  setInterval(()=>{
-    if(opts.onSync && (state._activePathId || state._activeShapeId || state._dragging || state._resizing)){
-      opts.onSync(state.objects);
-    }
-  }, 150);
+  function commit(){ stableValid=false; render(); scheduleSave(); if(opts.onSync) opts.onSync(state.objects); }
+  // No more 150ms polling — stroke:live events replace it for active drawing.
   function scheduleSave(){
     if(!saveEl) return;
     clearTimeout(state._saveTimer); saveEl.textContent='Saving…';
@@ -514,21 +533,50 @@ function createBoard(cfg){
       if(x>=b.x-4 && x<=b.x+b.w+4 && y>=b.y-4 && y<=b.y+b.h+4) return o; }
     return null;
   }
-  function render(){
+  function renderActive(){
+    // FAST PATH: composite cached background + live stroke only (sub-millisecond)
+    ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(stableLayer,0,0); // pixel-perfect copy of all completed objects
+    ctx.restore();
+    const ao = getObj(state._activePathId);
+    if(ao){ ctx.save(); if(ao._alpha) ctx.globalAlpha=ao._alpha; drawObject(ao); ctx.restore(); }
+    if(state.armed&&state._hoverPos) drawArmedPreview();
+  }
+  function renderFull(){
+    // FULL RENDER — used when stable cache is invalid (object added/removed/changed)
     const r = wrap.getBoundingClientRect();
     ctx.clearRect(0,0,r.width,r.height);
-    let needsAnotherFrame=false;
+    let naf=false;
     for(const o of state.objects){
+      if(state._activePathId && o.id===state._activePathId) continue; // draw after caching
       ctx.save();
-      let scale=1;
-      if(!REDUCED_MOTION && o.bornAt && now()-o.bornAt<180){ scale=0.6+0.4*((now()-o.bornAt)/180); needsAnotherFrame=true; }
-      if(scale!==1){ const b=bbox(o); const cx=b.x+b.w/2, cy=b.y+b.h/2; ctx.translate(cx,cy); ctx.scale(scale,scale); ctx.translate(-cx,-cy); }
-      const prevAlpha=ctx.globalAlpha; if(o._alpha) ctx.globalAlpha=o._alpha;
-      drawObject(o); ctx.globalAlpha=prevAlpha; ctx.restore();
+      let sc=1;
+      if(!REDUCED_MOTION&&o.bornAt&&now()-o.bornAt<180){sc=0.6+0.4*((now()-o.bornAt)/180);naf=true;}
+      if(sc!==1){const b=bbox(o);const cx=b.x+b.w/2,cy=b.y+b.h/2;ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.translate(-cx,-cy);}
+      const pa=ctx.globalAlpha; if(o._alpha) ctx.globalAlpha=o._alpha;
+      drawObject(o); ctx.globalAlpha=pa; ctx.restore();
     }
-    if(state.selectedId){ const o=getObj(state.selectedId); if(o) drawSelection(o); }
-    if(state.armed && state._hoverPos) drawArmedPreview();
-    if(needsAnotherFrame) requestAnimationFrame(render);
+    if(state._activePathId){
+      // Snapshot current canvas to stable layer (everything except the active stroke)
+      const sc2=stableLayer.getContext('2d');
+      sc2.clearRect(0,0,stableLayer.width,stableLayer.height);
+      // Copy the canvas in pixel space — works regardless of ctx transform / viewScale
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+      sc2.drawImage(canvas,0,0);
+      ctx.restore();
+      stableValid=true;
+      // Now draw active stroke on top
+      const ao=getObj(state._activePathId);
+      if(ao){ctx.save();if(ao._alpha)ctx.globalAlpha=ao._alpha;drawObject(ao);ctx.restore();}
+    }
+    if(state.selectedId){const o=getObj(state.selectedId);if(o)drawSelection(o);}
+    if(state.armed&&state._hoverPos) drawArmedPreview();
+    if(naf) requestAnimationFrame(render);
+  }
+  function render(){
+    if(state._activePathId && stableValid) renderActive();
+    else renderFull();
   }
   function drawObject(o){
     if(o.type==='path'){
@@ -675,10 +723,9 @@ function createBoard(cfg){
       const o=getObj(state._activePathId);
       if(o){
         const last=o.points[o.points.length-1];
-        /* only add a point if the pointer moved at least 2px — filters high-freq
-           jitter from touch/stylus without losing curve fidelity at normal speed */
         if(Math.hypot(x-last.x,y-last.y) >= 2){
-          o.points.push({x,y}); render();
+          o.points.push({x,y}); render(); // uses fast stable-canvas path
+          if(opts.onStrokeLive) opts.onStrokeLive(state._activePathId, o);
         }
       }
       return;
@@ -689,7 +736,10 @@ function createBoard(cfg){
     if(state._dragCandidate){ state._dragCandidate=null; if(state._dragging) scheduleSave(); state._dragging=false; }
     if(state._resizing){ state._resizing=null; scheduleSave(); }
     if(state._erasing){ state._erasing=false; }
-    if(state._activePathId){ state._activePathId=null; scheduleSave(); }
+    if(state._activePathId){
+      const finalId=state._activePathId; state._activePathId=null; stableValid=false;
+      commit(); // immediate full sync so teacher gets the completed stroke at once
+    }
     if(state._activeShapeId){
       const o=getObj(state._activeShapeId);
       if(o){ const w=Math.abs(o.x2-o.x1), h=Math.abs(o.y2-o.y1);
@@ -960,6 +1010,73 @@ document.querySelectorAll('.pw-eye').forEach(btn=>btn.addEventListener('click',(
 }));
 
 /* ── Login ── */
+/* ── Quick join (link-based, no account) ── */
+const _urlCode = new URLSearchParams(window.location.search).get('code');
+const _sessionKey = localStorage.getItem('slate_session')||(()=>{const k=Math.random().toString(36).slice(2);localStorage.setItem('slate_session',k);return k;})();
+if(_urlCode){
+  document.getElementById('quickJoinSection').style.display='block';
+  document.getElementById('loginTitle').textContent='Join Whiteboard';
+  document.getElementById('loginSubtitle').style.display='none';
+  window._quickJoinCode=_urlCode;
+  // Fetch the room name so we can display it before the student types their name
+  fetch('/api/whiteboard/'+_urlCode)
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok) document.getElementById('quickJoinRoomName').textContent=d.name; })
+    .catch(()=>{});
+}
+document.getElementById('quickJoinBtn').addEventListener('click',doQuickJoin);
+document.getElementById('quickJoinName').addEventListener('keydown',e=>{if(e.key==='Enter')doQuickJoin();});
+async function doQuickJoin(){
+  const name=document.getElementById('quickJoinName').value.trim();
+  const errEl=document.getElementById('quickJoinError');
+  const btn=document.getElementById('quickJoinBtn');
+  if(!name){errEl.textContent='Please enter your name.';return;}
+  errEl.textContent='Joining…';errEl.style.color='var(--ink-soft)';btn.disabled=true;
+  if(!socket.connected) socket.connect();
+  socket.emit('whiteboard:quickjoin',{code:window._quickJoinCode,name,sessionKey:_sessionKey},(res)=>{
+    btn.disabled=false;
+    if(!res||!res.ok){errEl.textContent=res&&res.error||'Could not join.';errEl.style.color='var(--red)';return;}
+    errEl.textContent='';
+    myStudentId=res.studentId; myClassroomCode=res.code;
+    // Restore previous work if any
+    const guestSession={name,sessionKey:_sessionKey,restoreObjects:res.objects||[]};
+    enterWorkspaceGuest(name,'🙂',res.classroomName,res.objects||[]);
+  });
+}
+function enterWorkspaceGuest(name,avatar,classroomName,savedObjects){
+  document.getElementById('wsClassName').textContent=classroomName||'Whiteboard';
+  document.getElementById('wsAvatar').textContent=avatar;
+  document.getElementById('wsName').textContent=name;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('workspaceScreen').style.display='flex';
+  const wrap=document.getElementById('boardWrap');
+  const canvas=document.getElementById('boardCanvas');
+  if(board) board.destroy();
+  board=createBoard({canvas,wrap,cursorEl:document.getElementById('boardCursor'),saveEl:null,role:'student',
+    opts:{isAnnotating:()=>false,annotateConfig:null,onArmedChange:syncArmedHighlight,
+      onSync:(objects)=>{if(socket.connected)socket.emit('student:sync',{
+        objects:JSON.parse(JSON.stringify(objects,(k,v)=>k==='_imgEl'?undefined:v)),
+        canvasWidth:wrap.clientWidth,canvasHeight:wrap.clientHeight});},
+      onStrokeLive:(function(){let pending=null,rafId=null;return(pathId,o)=>{
+        pending={pathId,color:o.color,width:o.width,owner:o.owner,_alpha:o._alpha||null,points:o.points};
+        if(!rafId)rafId=requestAnimationFrame(()=>{
+          if(pending&&socket.connected&&myStudentId)socket.emit('stroke:live',{studentId:myStudentId,code:myClassroomCode,...pending});
+          pending=null;rafId=null;});};})()
+    }});
+  window.setFocusedBoard(board);
+  if(savedObjects&&savedObjects.length){
+    // Restore previous session work
+    board.state.objects=savedObjects.map(o=>{
+      if(o.type==='image'&&o.src){const im=new Image();im.onload=()=>board.render();im.src=o.src;o._imgEl=im;}return o;});
+  } else {
+    board.state.objects=[newObj('sticky',{x:24,y:20,w:220,h:92,
+      text:'Welcome, '+name+'! ✍️ Your teacher can see your work.',color:'#FFCB52',owner:'teacher',bornAt:0})];
+  }
+  board.render();
+  if(socket.connected)socket.emit('student:sync',{objects:board.state.objects,canvasWidth:wrap.clientWidth,canvasHeight:wrap.clientHeight});
+  wireToolbar();
+}
+
 document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('sPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 async function doLogin(){
@@ -1093,7 +1210,20 @@ function enterWorkspace(name, avatar, classroomName){
       onSync: (objects)=>{ if(socket.connected) socket.emit('student:sync', {
         objects: JSON.parse(JSON.stringify(objects, (k,v)=> k==='_imgEl' ? undefined : v)),
         canvasWidth: wrap.clientWidth, canvasHeight: wrap.clientHeight
-      }); }
+      }); },
+      onStrokeLive: (function(){
+        // rAF-throttled: never sends more than once per display frame (~60fps)
+        let pending=null, rafId=null;
+        return (pathId, o)=>{
+          pending={pathId,color:o.color,width:o.width,owner:o.owner,_alpha:o._alpha||null,points:o.points};
+          if(!rafId) rafId=requestAnimationFrame(()=>{
+            if(pending&&socket.connected&&myStudentId){
+              socket.emit('stroke:live',{studentId:myStudentId,code:myClassroomCode,...pending});
+            }
+            pending=null; rafId=null;
+          });
+        };
+      })()
     }});
   window.setFocusedBoard(board);
   board.state.objects = [
