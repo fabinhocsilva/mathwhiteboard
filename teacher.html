@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>Slate — Teacher Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght=500;600;700&family=Nunito:wght=600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
   :root{
     --cloud:#FBF8F2; --paper:#FFFEFB; --grid-dot:#E7E0CF;
@@ -167,6 +167,7 @@
   .mc-options.show{display:flex;}
   .mc-option{display:flex; align-items:center; gap:8px;}
   .mc-option input[type=text]{flex:1; padding:7px 9px; border-radius:8px; border:1.5px solid var(--line);}
+  .mc-option .iconbtn danger{color:var(--red);}
   .pdf-chip{display:inline-flex; align-items:center; gap:6px; background:var(--coral-bg); color:var(--coral-dark);
     padding:5px 10px; border-radius:999px; font-size:12px; font-weight:700; margin-top:6px;}
   .pdf-chip a{color:inherit;}
@@ -207,6 +208,15 @@
   .modal-overlay{position:fixed; inset:0; background:rgba(47,43,61,0.4); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal{background:#fff; border-radius:20px; padding:22px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.2); max-height:90vh; overflow:auto;}
+  #monitorModal .modal{width:min(1100px,97vw); height:90vh; max-height:96vh; display:flex; flex-direction:column;}
+  #monitorModal .modal .modal-head,#monitorModal .modal .modal-toolbar{flex-shrink:0;}
+  #monitorModal .modal #monitorWrap{flex:1; min-height:300px; height:auto!important;}
+  #monitorModal .modal.fs{position:fixed;inset:0;border-radius:0;width:100vw!important;max-height:100vh;display:flex;flex-direction:column;z-index:999;padding:12px 14px;}
+  #monitorModal .modal.fs #monitorWrap{flex:1;height:auto!important;}
+  #monitorModal .modal.fs .modal-head,.modal.fs .modal-toolbar{flex-shrink:0;}
+  .expand-btn  {border:none;background:var(--cloud);border-radius:8px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;}
+  .expand-btn:hover{background:var(--line);}
+  .canvas-wrap.big{height:min(74vh,760px);}
   .modal.wide{width:560px;}
   .modal h3{margin:0 0 12px;}
   .modal label{font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;}
@@ -216,7 +226,14 @@
   .modal-actions .cancel{background:var(--cloud);}
   .modal-actions .confirm{background:var(--lavender); color:#fff;}
   .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
-  .modal-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .modal-toolbar{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:0; align-items:center;}
+  .modal-toolbar button{border:none; border-radius:999px; padding:6px 11px; font-size:12px; font-weight:700; background:var(--cloud); cursor:pointer;}
+  .modal-toolbar button.active{background:var(--red); color:#fff;}
+  .modal-sep{width:1px; height:20px; background:var(--line); margin:0 2px; flex-shrink:0;}
+  .mswatch{width:20px!important; height:20px!important; border-radius:50%!important; padding:0!important; border:2px solid #fff!important; box-shadow:0 0 0 1px var(--line);}
+  .mswatch.active{box-shadow:0 0 0 2px var(--ink)!important;}
+  .mwbtn{min-width:28px; font-size:11px!important; padding:4px 7px!important;}
+  .mwbtn.active{background:var(--ink)!important; color:#fff!important;}
   .modal-toolbar button{border:none; border-radius:999px; padding:7px 12px; font-size:13px; font-weight:700; background:var(--cloud);}
   .modal-toolbar button.active{background:var(--red); color:#fff;}
 
@@ -269,11 +286,13 @@
   .perm-badge.denied{background:#FCEAEA;color:var(--red);}
   .copy-feedback{font-size:11px;color:var(--teal-dark);font-weight:800;}
   .theme-toggle{border:none;background:var(--cloud);border-radius:999px;padding:6px 10px;font-size:16px;cursor:pointer;}
+  .fkbd-row{display:flex;flex-wrap:wrap;gap:5px;}
+  .fkey{border:none;background:var(--cloud);border-radius:9px;min-width:34px;height:36px;padding:0 9px;font-size:17px;font-family:var(--font-math);box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;}
+  .fkey:hover{background:var(--lavender);color:#fff;}
 </style>
 </head>
 <body>
 
-<!-- TEACHER LOGIN -->
 <div class="auth-page show" id="tLoginPage">
   <div class="auth-card">
     <div class="auth-logo">✏️</div>
@@ -293,7 +312,6 @@
   </div>
 </div>
 
-<!-- TEACHER REGISTER -->
 <div class="auth-page" id="tRegisterPage">
   <div class="auth-card">
     <div class="auth-logo">✏️</div>
@@ -319,7 +337,6 @@
   </div>
 </div>
 
-<!-- DASHBOARD (hidden until logged in) -->
 <div class="app-shell" id="appShell" style="display:none;">
   <aside class="sidebar">
     <div class="brand">✏️ Slate</div>
@@ -409,11 +426,7 @@
     </section>
 
   </main>
-</div><!-- /app-shell -->
-</div><!-- /appShell wrapper -->
-
-<!-- Email Invite modal -->
-<div class="modal-overlay" id="emailInviteModal">
+</div></div><div class="modal-overlay" id="emailInviteModal">
   <div class="modal">
     <h3>📧 Invite by Email</h3>
     <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">
@@ -434,7 +447,6 @@
   </div>
 </div>
 
-<!-- Invite to Classroom modal -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal">
     <h3>📬 Invite Student to Classroom</h3>
@@ -451,7 +463,6 @@
   </div>
 </div>
 
-<!-- Add Student modal -->
 <div class="modal-overlay" id="addStudentModal">
   <div class="modal">
     <h3>Add Student Account</h3>
@@ -475,7 +486,6 @@
   </div>
 </div>
 
-<!-- Edit Password modal -->
 <div class="modal-overlay" id="editPwModal">
   <div class="modal">
     <h3 id="editPwTitle">Change Password</h3>
@@ -493,7 +503,6 @@
   </div>
 </div>
 
-<!-- View Credentials modal -->
 <div class="modal-overlay" id="credsModal">
   <div class="modal">
     <h3 id="credsTitle">Student Credentials</h3>
@@ -506,7 +515,6 @@
   </div>
 </div>
 
-<!-- New classroom modal -->
 <div class="modal-overlay" id="classroomModal">
   <div class="modal">
     <h3>New classroom</h3>
@@ -519,19 +527,43 @@
   </div>
 </div>
 
-<!-- Student monitor / annotate modal -->
 <div class="modal-overlay" id="monitorModal">
   <div class="modal wide">
     <div class="modal-head">
       <h3 id="monitorModalName">Student</h3>
-      <button class="iconbtn" id="monitorModalClose">✖</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="expand-btn" id="monitorExpand" title="Expand to full screen">⛶</button>
+        <button class="iconbtn" id="monitorModalClose">✖</button>
+      </div>
     </div>
-    <div class="modal-toolbar" id="monitorModalToolbar">
-      <button data-mtool="pen" class="active">✏️ Correct</button>
-      <button data-mtool="highlight">🟨 Highlight</button>
-      <button data-mtool="eraser">🧹 Erase</button>
-      <button id="monitorHintBtn">💡 Hint</button>
-      <button id="monitorLockBtn">🔒 Lock</button>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+      <div class="modal-toolbar" id="monitorModalToolbar">
+        <button data-mtool="pen" class="active">✏️ Correct</button>
+        <button data-mtool="highlight">🟨 Highlight</button>
+        <button data-mtool="eraser">🧹 Erase</button>
+        <div class="modal-sep"></div>
+        <button class="mswatch active" data-mcolor="#E5484D" style="background:#E5484D" title="Red"></button>
+        <button class="mswatch" data-mcolor="#E76B3C" style="background:#E76B3C" title="Orange"></button>
+        <button class="mswatch" data-mcolor="#2C8E82" style="background:#2C8E82" title="Teal"></button>
+        <button class="mswatch" data-mcolor="#3F7FE0" style="background:#3F7FE0" title="Blue"></button>
+        <button class="mswatch" data-mcolor="#9A8FC9" style="background:#9A8FC9" title="Purple"></button>
+        <button class="mswatch" data-mcolor="#2F2B3D" style="background:#2F2B3D" title="Black"></button>
+        <div class="modal-sep"></div>
+        <button class="mwbtn" data-mwidth="2">S</button>
+        <button class="mwbtn active" data-mwidth="4">M</button>
+        <button class="mwbtn" data-mwidth="8">L</button>
+        <div class="modal-sep"></div>
+        <button id="monitorFracBtn" title="Fraction">½</button>
+        <button id="monitorEqBtn" title="Equation editor">∑ Eq</button>
+        <button id="monitorImgBtn" title="Insert image">🖼️</button>
+        <input type="file" id="monitorImgInput" accept="image/*" style="display:none">
+        <button id="annotatePdfBtn" title="Upload PDF">📄</button>
+        <input type="file" id="annotatePdfInput" accept="application/pdf" style="display:none">
+        <button id="monitorKbdBtn" title="Math keys">🔢</button>
+        <div class="modal-sep"></div>
+        <button id="monitorHintBtn">💡 Hint</button>
+        <button id="monitorLockBtn">🔒 Lock</button>
+      </div>
     </div>
     <div class="canvas-wrap big" id="monitorWrap">
       <canvas id="monitorCanvas"></canvas>
@@ -541,7 +573,6 @@
   </div>
 </div>
 
-<!-- Hint modal (shared) -->
 <div class="modal-overlay" id="hintModal">
   <div class="modal">
     <h3>Give a hint</h3>
@@ -554,7 +585,6 @@
   </div>
 </div>
 
-<!-- Replay modal -->
 <div class="modal-overlay" id="replayModal">
   <div class="modal wide">
     <div class="modal-head">
@@ -572,7 +602,46 @@
   </div>
 </div>
 
-<!-- Fraction modal (shared by question composer keyboards) -->
+<!-- Equation Editor modal -->
+<div class="modal-overlay" id="equationModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>∑ Equation Editor</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 10px;">Type a LaTeX expression. Click a symbol to insert it.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;padding:8px;background:var(--cloud);border-radius:10px;">
+      <button class="eq-sym" data-eq="\frac{a}{b}">a/b</button>
+      <button class="eq-sym" data-eq="x^{2}">x²</button>
+      <button class="eq-sym" data-eq="x^{n}">xⁿ</button>
+      <button class="eq-sym" data-eq="\sqrt{x}">√x</button>
+      <button class="eq-sym" data-eq="\sqrt[n]{x}">ⁿ√x</button>
+      <button class="eq-sym" data-eq="\pm">±</button>
+      <button class="eq-sym" data-eq="\infty">∞</button>
+      <button class="eq-sym" data-eq="\pi">π</button>
+      <button class="eq-sym" data-eq="\theta">θ</button>
+      <button class="eq-sym" data-eq="\alpha">α</button>
+      <button class="eq-sym" data-eq="\beta">β</button>
+      <button class="eq-sym" data-eq="\Delta">Δ</button>
+      <button class="eq-sym" data-eq="\sum_{i=0}^{n}">Σ</button>
+      <button class="eq-sym" data-eq="\int_{a}^{b}">∫</button>
+      <button class="eq-sym" data-eq="\lim_{x \to 0}">lim</button>
+      <button class="eq-sym" data-eq="\leq">≤</button>
+      <button class="eq-sym" data-eq="\geq">≥</button>
+      <button class="eq-sym" data-eq="\neq">≠</button>
+      <button class="eq-sym" data-eq="\approx">≈</button>
+      <button class="eq-sym" data-eq="\times">×</button>
+      <button class="eq-sym" data-eq="\div">÷</button>
+      <button class="eq-sym" data-eq="\circ">∘</button>
+      <button class="eq-sym" data-eq="^{\circ}">°</button>
+    </div>
+    <label style="font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">LaTeX</label>
+    <textarea id="eqInput" rows="3" placeholder="e.g.  \frac{-b \pm \sqrt{b^2-4ac}}{2a}" style="width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--line);font-family:monospace;font-size:14px;resize:vertical;margin-top:4px;"></textarea>
+    <div style="margin:10px 0;min-height:60px;background:var(--cloud);border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;" id="eqPreview"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="eqCancel">Cancel</button>
+      <button class="confirm" id="eqInsert">Insert on board</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="fractionModal">
   <div class="modal">
     <h3>Build a fraction</h3>
@@ -587,17 +656,40 @@
   </div>
 </div>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+
+<!-- Floating Math Keyboard (for annotation modal) -->
+<div id="floatKbd" style="display:none;position:fixed;z-index:200;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
+  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
+    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
+    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
+  </div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
+      <button class="cat-toggle active" data-tcat="ops">+ − × ÷</button>
+      <button class="cat-toggle" data-tcat="alg">x y z</button>
+      <button class="cat-toggle" data-tcat="sym">π √ °</button>
+      <button class="cat-toggle" data-tcat="exp">x² xⁿ</button>
+      <button class="cat-toggle" data-tcat="frac">½</button>
+      <button class="cat-toggle" data-tcat="geo">∠ Σ ∫</button>
+    </div>
+    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">Tap a key to arm it · tap the board to place it</div>
+  </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
 'use strict';
 
 /* =========================================================
-   Shared whiteboard engine (same model as the whiteboard
-   prototype, reused here for question composing, live
-   student previews, monitor/annotate, and session replay)
+   Shared whiteboard engine
    ========================================================= */
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const uid = () => Math.random().toString(36).slice(2,9);
@@ -660,7 +752,7 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
+  ctx.arcTo(x,y+w,x+w,y,r);
   ctx.closePath();
 }
 function wrapText(ctx,text,x,y,maxW,lineH){
@@ -837,7 +929,13 @@ function createBoard(cfg){
       ctx.translate(cx,cy); ctx.rotate(-0.03); ctx.translate(-cx,-cy);
       ctx.fillStyle=o.color; roundRect(ctx,o.x,o.y,o.w,o.h,10); ctx.fill();
       ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.font="16px 'Patrick Hand', cursive";
-      wrapText(ctx,o.text,o.x+12,o.y+26,o.w-24,20);
+      wrapText(ctx,o.text,o.x+12,o.y+28,o.w-24,20);
+      /* close ✕ button in top-right */
+      ctx.fillStyle='rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.arc(o.x+o.w-11,o.y+11,9,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=1.8; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(o.x+o.w-15,o.y+7); ctx.lineTo(o.x+o.w-7,o.y+15);
+      ctx.moveTo(o.x+o.w-7,o.y+7); ctx.lineTo(o.x+o.w-15,o.y+15); ctx.stroke();
       ctx.restore();
     }
   }
@@ -889,6 +987,24 @@ function createBoard(cfg){
     if(state.locked && !annotating() && !opts.interactiveLockedPreview) return;
     const {x,y} = localPos(e);
     if(!canDraw()) return;
+
+    /* Sticky: check close button OR start drag with any tool */
+    for(let _i=state.objects.length-1;_i>=0;_i--){
+      const _o=state.objects[_i];
+      if(_o.type!=='sticky') continue;
+      /* close ✕ hit area */
+      if(Math.hypot(x-(_o.x+_o.w-11),y-(_o.y+11))<=12){
+        pushHistory(); state.objects.splice(_i,1); state.selectedId=null; commit(); return;
+      }
+      /* drag — hit anywhere on the sticky body */
+      if(x>=_o.x&&x<=_o.x+_o.w&&y>=_o.y&&y<=_o.y+_o.h){
+        state.selectedId=_o.id;
+        state._dragCandidate={id:_o.id,startX:x,startY:y,orig:JSON.parse(JSON.stringify(_o))};
+        state._stickyDrag=true;
+        render(); return;
+      }
+    }
+
     const tool = activeTool(); const owner = activeOwner();
 
     if(tool==='select'){
@@ -1041,16 +1157,17 @@ function createBoard(cfg){
 
   resize();
   const boardHandle = {
+    resize,
     state, render, undo, redo, setTool, setColor, setWidth, setLocked, destroy,
     insertChar, backspace, finishEdit, insertFraction, insertSticky,
     insertImageFromFile, clearMine, deleteSelected, ensureActiveText,
-    setStableValid: ()=>{}, // stub — teacher boards use full render on every update
+    setStableValid: ()=>{},
     get activeEditId(){ return state.activeEditId; }
   };
   return boardHandle;
 }
 
-/* ---- math keyboard (same component as the whiteboard prototype) ---- */
+/* ---- math keyboard ---- */
 const KBD_TABS = [
   {id:'nums', label:'Numbers & Ops', render:()=>{
     let html = '<div class="kbd-grid">';
@@ -1131,7 +1248,7 @@ window.addEventListener('keydown', (e)=>{
 });
 
 /* =========================================================
-   App data (mock — stands in for the real backend)
+   App data
    ========================================================= */
 function mockObjs(list){ return list.map(o=> newObj(o.type, Object.assign({bornAt:0}, o))); }
 
@@ -1201,23 +1318,12 @@ const classrooms = seedClassrooms();
 let currentClassroomId = classrooms[0].id;
 
 function currentClassroom(){ return classrooms.find(c=>c.id===currentClassroomId); }
-function copyText(text, btn){
-  function done(){ const orig=btn.textContent; btn.textContent='Copied ✓'; setTimeout(()=>{ btn.textContent=orig; },1500); }
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(done).catch(fallback);
-  } else fallback();
-  function fallback(){
-    const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); done(); }catch(e){}
-    ta.remove();
-  }
-}
 
 function reconstructImages(objects){
   (objects||[]).forEach(o=>{
     if(o.type==='image' && o.src && !o._imgEl){
       const im = new Image();
-      im.onload = ()=>{ /* re-rendered by whichever board reads this on next render() call */ };
+      im.onload = ()=>{};
       im.src = o.src;
       o._imgEl = im;
     }
@@ -1229,14 +1335,23 @@ function reconstructImages(objects){
    Realtime connection — keeps classroom data live
    ========================================================= */
 const socket = io();
+window.socket = socket;
 const serverStatus = document.getElementById('serverStatus');
-socket.on('connect', ()=>{ serverStatus.textContent='🟢 Server connected'; serverStatus.className='server-status online'; });
+socket.on('connect', ()=>{
+  serverStatus.textContent='🟢 Server connected'; serverStatus.className='server-status online';
+  if(authToken){
+    classrooms.forEach(c=>{
+      const code=classCode(c);
+      if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
+    });
+  }
+});
 socket.on('disconnect', ()=>{ serverStatus.textContent='🔴 Server disconnected'; serverStatus.className='server-status offline'; });
 socket.on('connect_error', ()=>{ serverStatus.textContent='🔴 Couldn\u2019t reach server'; serverStatus.className='server-status offline'; });
 
 /* ── stroke:live — see student pen strokes at ~60fps without waiting for full sync ── */
 socket.on('stroke:live', data=>{
-  const c=classrooms.find(x=>x.connected&&(x.serverCode===data.code||x.inviteCode===data.code));
+  const c=findByCode(data.code);
   if(!c) return;
   const s=(c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
@@ -1253,31 +1368,31 @@ socket.on('stroke:live', data=>{
     if(s.__board.setStableValid) s.__board.setStableValid(false);
     s.__board.render();
   }
-  /* Update open annotate modal (teacher sees live strokes while modal is open) */
-  const annotateModalEl=document.getElementById('annotateModal');
-  const modalOpen=annotateModalEl&&annotateModalEl.classList.contains('show');
-  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
-    let path=annotateBoard.state.objects.find(o=>o.id===data.pathId);
+  /* Update open monitor modal */
+  const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
+  if(modalOpen && window.monitorBoard && window.monitorStudent && window.monitorStudent.id===data.studentId){
+    let path=window.monitorBoard.state.objects.find(o=>o.id===data.pathId);
     if(!path){
-      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,owner:data.owner||'student'};
+      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,owner:'student'};
       if(data._alpha) path._alpha=data._alpha;
-      annotateBoard.state.objects.push(path);
+      window.monitorBoard.state.objects.push(path);
     }
     path.points=data.points;
-    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
-    annotateBoard.render();
+    if(window.monitorBoard.setStableValid) window.monitorBoard.setStableValid(false);
+    window.monitorBoard.render();
   }
 });
 
 socket.on('roster:update', (data)=>{
-  const c = classrooms.find(x=>x.connected && x.inviteCode===data.code);
+  const c = findByCode(data.code);
   if(!c) return;
   const prevById = {}; c.students.forEach(s=> prevById[s.id]=s);
   c.students = data.students.map(s=> Object.assign({accuracy:'—'}, prevById[s.id]||{}, s, {objects: reconstructImages(s.objects)}));
   if(currentClassroomId===c.id && (document.querySelector('.screen.active')||{dataset:{}}).dataset.screen==='monitor') renderMonitor();
 });
+
 socket.on('student:objects', (data)=>{
-  const c = classrooms.find(x=>x.connected&&(x.inviteCode===data.code||x.serverCode===data.code));
+  const c = findByCode(data.code);
   if(!c) return;
   const s = (c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
@@ -1294,17 +1409,17 @@ socket.on('student:objects', (data)=>{
     s.__board.render();
   }
   /* Live modal update — student strokes appear under teacher's annotations */
-  const modalOpen=document.getElementById('annotateModal')?.classList.contains('show');
-  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
-    const teacherObjs=annotateBoard.state.objects.filter(o=>o.owner==='teacher');
-    annotateBoard.state.objects=[...reconstructImages(data.objects),...teacherObjs];
-    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
-    annotateBoard.render();
+  const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
+  if(modalOpen && window.monitorBoard && window.monitorStudent && window.monitorStudent.id===data.studentId){
+    const teacherObjs=window.monitorBoard.state.objects.filter(o=>o.owner==='teacher');
+    window.monitorBoard.state.objects=[...reconstructImages(data.objects), ...teacherObjs];
+    if(window.monitorBoard.setStableValid) window.monitorBoard.setStableValid(false);
+    window.monitorBoard.render();
   }
 });
 
 /* =========================================================
-   Navigation (wired via auth boot block below)
+   Navigation
    ========================================================= */
 const screens = document.querySelectorAll('.screen');
 const navItems = document.querySelectorAll('.navitem');
@@ -1319,7 +1434,10 @@ function showScreen(name){
 }
 
 const classroomSelect = document.getElementById('classroomSelect');
-window.classrooms = classrooms; // accessible for debugging and external scripts
+window.classrooms = classrooms;
+
+function classCode(c){ return c.serverCode || c.inviteCode || ''; }
+function findByCode(code){ return classrooms.find(c=>classCode(c)===code); }
 function refreshClassroomSelect(){
   classroomSelect.innerHTML = classrooms.map(c=> '<option value="'+c.id+'"'+(c.id===currentClassroomId?' selected':'')+'>'+c.name+'</option>').join('');
 }
@@ -1333,10 +1451,17 @@ classroomSelect.addEventListener('change', ()=>{
    Screen: Classrooms
    ========================================================= */
 function joinUrl(c){
-  return c.connected ? (location.origin + '/student.html?code=' + c.inviteCode) : ('slate.app/join/' + c.inviteCode);
+  const code = classCode(c);
+  return code ? (location.origin + '/student.html?code=' + code) : 'slate.app/join/—';
 }
 function renderClassrooms(){
   refreshClassroomSelect();
+  if(authToken && socket.connected){
+    classrooms.forEach(c=>{
+      const code=classCode(c);
+      if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
+    });
+  }
   const grid = document.getElementById('classroomGrid');
   grid.innerHTML = classrooms.map(c=>
     '<div class="classroom-card">'+
@@ -1375,17 +1500,6 @@ function renderClassrooms(){
       ta.remove();
     }
   }));
-  grid.querySelectorAll('[data-regen]').forEach(b=> b.addEventListener('click', ()=>{
-    const c = classrooms.find(x=>x.id===b.dataset.regen);
-    if(c.connected){
-      socket.emit('classroom:regenerateCode', {oldCode:c.inviteCode}, (res)=>{
-        if(res && res.ok){ c.inviteCode = res.code; renderClassrooms(); }
-      });
-    } else {
-      c.inviteCode = uid().toUpperCase().slice(0,4)+'-'+uid().toUpperCase().slice(0,4);
-      renderClassrooms();
-    }
-  }));
 }
 document.getElementById('newClassroomBtn').addEventListener('click', ()=>{
   document.getElementById('newClassroomName').value='';
@@ -1396,9 +1510,14 @@ document.getElementById('classroomCreate').addEventListener('click', ()=>{
   const name = document.getElementById('newClassroomName').value.trim();
   if(!name) return;
   socket.emit('classroom:create', {name, token: authToken}, (res)=>{
-    const c = {id:uid(), name, inviteCode: (res && res.ok) ? res.code : uid().toUpperCase().slice(0,4)+'-'+uid().toUpperCase().slice(0,4),
-      connected: !!(res && res.ok), students:[], assignments:[], analytics:null};
+    const code = (res && res.ok) ? res.code : null;
+    const c = {id:uid(), name,
+      serverCode: code,
+      inviteCode: code,
+      connected: true,
+      students:[], assignments:[], analytics:null};
     classrooms.push(c);
+    if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
     document.getElementById('classroomModal').classList.remove('show');
     currentClassroomId = c.id;
     renderClassrooms();
@@ -1408,8 +1527,8 @@ document.getElementById('classroomCreate').addEventListener('click', ()=>{
 /* =========================================================
    Screen: Live Monitor
    ========================================================= */
-let monitorBoard = null; // currently-open expand modal board
-let monitorStudent = null;
+window.monitorBoard = null;
+window.monitorStudent = null;
 
 function renderMonitor(){
   const c = currentClassroom();
@@ -1463,14 +1582,14 @@ function renderMonitor(){
 
   grid.querySelectorAll('[data-view]').forEach(b=> b.addEventListener('click', ()=> openMonitorModal(b.dataset.view)));
   grid.querySelectorAll('[data-quickhint]').forEach(b=> b.addEventListener('click', ()=>{
-    monitorStudent = c.students.find(s=>s.id===b.dataset.quickhint);
+    window.monitorStudent = c.students.find(s=>s.id===b.dataset.quickhint);
     window.openHintModal();
   }));
   grid.querySelectorAll('[data-quicklock]').forEach(b=> b.addEventListener('click', ()=>{
     const s = c.students.find(x=>x.id===b.dataset.quicklock);
     s.locked = !s.locked;
     s.status = s.locked ? 'locked' : 'active';
-    if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:s.id, locked:s.locked});
+    socket.emit('teacher:lock', {code:classCode(c), studentId:s.id, locked:s.locked});
     renderMonitor();
   }));
 
@@ -1483,7 +1602,7 @@ document.getElementById('lockAllBtn').addEventListener('click', ()=>{
   const lockingAll = !c.students.every(s=>s.locked);
   c.students.forEach(s=>{
     s.locked = lockingAll; s.status = lockingAll ? 'locked' : (s.objects.length? 'active':'idle');
-    if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:s.id, locked:s.locked});
+    socket.emit('teacher:lock', {code:classCode(c), studentId:s.id, locked:s.locked});
   });
   document.getElementById('lockAllBtn').textContent = lockingAll ? '🔓 Unlock All' : '🔒 Lock All';
   renderMonitor();
@@ -1493,10 +1612,6 @@ function stripImgEl(objects){
   return JSON.parse(JSON.stringify(objects, (k,v)=> k==='_imgEl' ? undefined : v));
 }
 function mergedAnnotateObjects(student, board){
-  // The teacher's modal view can go stale relative to the student's live board
-  // if the student keeps working while it's open. Take the student's latest
-  // own content, and layer the teacher's annotations (from this board) on top,
-  // rather than letting the teacher's snapshot replace everything wholesale.
   const studentOwned = (student.objects||[]).filter(o=>o.owner==='student');
   const teacherOwned = (board.state.objects||[]).filter(o=>o.owner==='teacher');
   return studentOwned.concat(teacherOwned);
@@ -1505,7 +1620,7 @@ function mergedAnnotateObjects(student, board){
 function openMonitorModal(studentId){
   const c = currentClassroom();
   const s = c.students.find(x=>x.id===studentId);
-  monitorStudent = s;
+  window.monitorStudent = s;
   document.getElementById('monitorModalName').textContent = s.name + "'s board";
 
   const wrap = document.getElementById('monitorWrap');
@@ -1514,20 +1629,42 @@ function openMonitorModal(studentId){
   canvas.id = 'monitorCanvas';
   wrap.insertBefore(canvas, wrap.firstChild);
 
-  if(monitorBoard) monitorBoard.destroy();
+  if(window.monitorBoard) window.monitorBoard.destroy();
   const annotateConfig = {tool:'pen', color:'#E5484D', width:3};
   const refW = s.canvasWidth || 1100, refH = s.canvasHeight || 650;
   const modalRect = wrap.getBoundingClientRect();
-  const viewScale = Math.min(modalRect.width/refW, modalRect.height/refH);
-  monitorBoard = createBoard({
+  const vs0 = Math.min(modalRect.width/refW, modalRect.height/refH);
+  
+  window._monitorOpts = {
+    isAnnotating:()=>true, annotateConfig, viewScale:vs0, refW, refH,
+    onAnnotateStroke:()=>{
+      socket.emit('teacher:annotate', {code:classCode(c), studentId:s.id, objects: stripImgEl(mergedAnnotateObjects(s, window.monitorBoard))});
+    },
+    onStrokeLive: NavStrokeLiveHandler()
+  };
+
+  function NavStrokeLiveHandler(){
+    let pending=null, rafId=null;
+    return (pathId, o)=>{
+      pending={pathId, points:o.points, color:o.color, width:o.width, owner:'teacher'};
+      if(!rafId) rafId=requestAnimationFrame(()=>{
+        if(pending && socket.connected && window.monitorStudent)
+          socket.emit('teacher:stroke:live',{
+            studentId:window.monitorStudent.id, code:classCode(currentClassroom()),
+            ...pending
+          });
+        pending=null; rafId=null;
+      });
+    };
+  }
+
+  window.monitorBoard = createBoard({
     canvas, wrap, cursorEl: document.getElementById('monitorCursor'), saveEl:null, role:'student',
-    opts:{isAnnotating:()=>true, annotateConfig, viewScale, onAnnotateStroke:()=>{
-      if(c.connected) socket.emit('teacher:annotate', {code:c.inviteCode, studentId:s.id, objects: stripImgEl(mergedAnnotateObjects(s, monitorBoard))});
-    }}
+    opts: window._monitorOpts
   });
-  monitorBoard.state.objects = s.objects;
-  monitorBoard.setLocked(s.locked);
-  monitorBoard.render();
+  window.monitorBoard.state.objects = s.objects;
+  window.monitorBoard.setLocked(s.locked);
+  window.monitorBoard.render();
 
   document.getElementById('monitorLockBanner').classList.toggle('show', s.locked);
   document.getElementById('monitorLockBtn').textContent = s.locked ? '🔓 Unlock' : '🔒 Lock';
@@ -1537,7 +1674,7 @@ function openMonitorModal(studentId){
   annotateConfig.tool='pen'; annotateConfig.color='#E5484D'; annotateConfig.width=3;
 
   document.getElementById('monitorModal').classList.add('show');
-  window.setFocusedBoard(monitorBoard);
+  window.setFocusedBoard(window.monitorBoard);
 
   toolbar.onclick = (e)=>{
     const tBtn = e.target.closest('[data-mtool]');
@@ -1549,45 +1686,245 @@ function openMonitorModal(studentId){
     tBtn.classList.add('active');
   };
 }
+document.getElementById('monitorFracBtn').addEventListener('click', ()=>{
+  if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
+});
+
+/* ── Annotation toolbar: colors, sizes, image, PDF, keyboard, equation ── */
+document.getElementById('monitorModalToolbar').addEventListener('click', e=>{
+  const mb = window.monitorBoard; if(!mb) return;
+  const ac = mb._annotateConfig;
+  /* color swatches */
+  const cs=e.target.closest('[data-mcolor]');
+  if(cs){ if(ac) ac.color=cs.dataset.mcolor; document.querySelectorAll('.mswatch').forEach(b=>b.classList.remove('active')); cs.classList.add('active'); return; }
+  /* width buttons */
+  const wb=e.target.closest('[data-mwidth]');
+  if(wb){ if(ac) ac.width=parseInt(wb.dataset.mwidth); document.querySelectorAll('.mwbtn').forEach(b=>b.classList.remove('active')); wb.classList.add('active'); return; }
+  /* draw tool buttons */
+  const tb=e.target.closest('[data-mtool]');
+  if(tb){
+    if(ac) ac.tool=tb.dataset.mtool;
+    document.querySelectorAll('[data-mtool]').forEach(b=>b.classList.remove('active')); tb.classList.add('active');
+    return;
+  }
+});
+document.getElementById('monitorImgBtn').addEventListener('click',()=>document.getElementById('monitorImgInput').click());
+document.getElementById('monitorImgInput').addEventListener('change',e=>{
+  const file=e.target.files[0]; e.target.value='';
+  const mb=window.monitorBoard; if(!file||!mb) return;
+  mb.insertImageFromFile(file);
+});
+/* ── Floating keyboard for teacher annotation board ── */
+const TKBD_CATS = {
+  ops:  { keys: [['+','+'],['-','-'],['×','×'],['÷','÷'],['=','=']] },
+  alg:  { keys: [['x','x'],['y','y'],['z','z'],['a','a'],['b','b'],['c','c']] },
+  sym:  { keys: [['(','('],[')',')'],['%','%'],['π','π'],['√','√'],['∞','∞'],['≠','≠'],['≤','≤'],['≥','≥'],['°','°']] },
+  exp:  { keys: [['x²','x^2'],['x³','x^3'],['xⁿ','x^n'],['x₁','x_1'],['x₂','x_2'],['^','^'],['_','_']] },
+  frac: { special:'fraction' },
+  geo:  { keys: [['∠','∠'],['△','△'],['⊥','⊥'],['∥','∥'],['Σ','Σ'],['μ','μ'],['σ','σ'],['∫','∫'],['Δ','Δ'],['∂','∂']] }
+};
+const tActiveCats = new Set(['ops']);
+function buildTKbdKeys(){
+  const container = document.getElementById('floatKbdKeys');
+  if(!container) return;
+  container.innerHTML = '';
+  const numRow = document.createElement('div'); numRow.className='fkbd-row';
+  for(let i=1;i<=9;i++) numRow.innerHTML += '<button class="fkey" data-tins="'+i+'">'+i+'</button>';
+  numRow.innerHTML += '<button class="fkey" data-tins="0">0</button>';
+  container.appendChild(numRow);
+  tActiveCats.forEach(catId=>{
+    const cat = TKBD_CATS[catId]; if(!cat) return;
+    if(cat.special==='fraction'){
+      const row=document.createElement('div'); row.className='fkbd-row';
+      row.innerHTML='<button class="fkey" data-tfrac style="font-size:15px;flex:1;min-width:80px;">½ Fraction</button>';
+      container.appendChild(row); return;
+    }
+    const row=document.createElement('div'); row.className='fkbd-row';
+    cat.keys.forEach(([l,v])=>{ row.innerHTML+='<button class="fkey" data-tins="'+v+'">'+l+'</button>'; });
+    container.appendChild(row);
+  });
+  container.querySelectorAll('[data-tins]').forEach(btn=>btn.addEventListener('click',()=>{
+    const mb=window.monitorBoard; if(!mb) return;
+    mb.insertChar ? mb.insertChar(btn.dataset.tins) : mb.insertFraction(btn.dataset.tins, '');
+  }));
+  container.querySelectorAll('[data-tfrac]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
+  }));
+}
+/* drag */
+(()=>{
+  const fkbd = document.getElementById('floatKbd');
+  const handle = document.getElementById('floatKbdHandle');
+  if(!fkbd||!handle) return;
+  let drag=null;
+  handle.addEventListener('pointerdown',(e)=>{
+    const r=fkbd.getBoundingClientRect();
+    drag={startX:e.clientX,startY:e.clientY,origLeft:r.left,origTop:r.top};
+    try{handle.setPointerCapture(e.pointerId);}catch(err){}
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove',(e)=>{
+    if(!drag) return;
+    let left=drag.origLeft+(e.clientX-drag.startX);
+    let top=drag.origTop+(e.clientY-drag.startY);
+    left=Math.max(4,Math.min(window.innerWidth-fkbd.offsetWidth-4,left));
+    top=Math.max(4,Math.min(window.innerHeight-80,top));
+    fkbd.style.left=left+'px'; fkbd.style.top=top+'px';
+  });
+  handle.addEventListener('pointerup',()=>{drag=null;});
+})();
+/* category toggles — use data-tcat to avoid conflict with student page */
+document.querySelectorAll('[data-tcat]').forEach(btn=>btn.addEventListener('click',()=>{
+  const cat=btn.dataset.tcat;
+  if(tActiveCats.has(cat)){tActiveCats.delete(cat);btn.classList.remove('active');}
+  else{tActiveCats.add(cat);btn.classList.add('active');}
+  buildTKbdKeys();
+}));
+document.getElementById('floatKbdClose').addEventListener('click',()=>{
+  document.getElementById('floatKbd').style.display='none';
+});
+document.getElementById('monitorKbdBtn').addEventListener('click',()=>{
+  const fkbd=document.getElementById('floatKbd');
+  const showing=fkbd.style.display==='block';
+  fkbd.style.display=showing?'none':'block';
+  if(!showing){
+    if(!fkbd.style.left){
+      const modal=document.getElementById('monitorModal');
+      const r=modal.getBoundingClientRect();
+      fkbd.style.left=Math.max(12,r.left+12)+'px';
+      fkbd.style.top=Math.max(12,r.bottom-400)+'px';
+    }
+    buildTKbdKeys();
+  }
+});
+document.getElementById('annotatePdfBtn').addEventListener('click',()=>document.getElementById('annotatePdfInput').click());
+document.getElementById('annotatePdfInput').addEventListener('change',async e=>{
+  const file=e.target.files[0]; e.target.value='';
+  const mb=window.monitorBoard; if(!file||!mb) return;
+  if(!window.pdfjsLib){ alert('PDF viewer loading…'); return; }
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let pg=1;
+  if(pdf.numPages>1){ const p=parseInt(prompt('PDF has '+pdf.numPages+' pages. Which page?'),10); if(p>=1&&p<=pdf.numPages) pg=p; }
+  const page=await pdf.getPage(pg);
+  const vp=page.getViewport({scale:1.8});
+  const tc=document.createElement('canvas'); tc.width=vp.width; tc.height=vp.height;
+  await page.render({canvasContext:tc.getContext('2d'),viewport:vp}).promise;
+  const img=new Image(); img.onload=()=>{ mb.state.objects.push(Object.assign({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:'teacher',x:30,y:30,w:Math.min(500,mb.state.objects.reduce((mx,o)=>Math.max(mx,(o.type==='image'?o.x+o.w:0)),0)||500),h:0,src:tc.toDataURL(),_imgEl:img},{h:0})); const ratio=img.naturalHeight/img.naturalWidth; mb.state.objects[mb.state.objects.length-1].h=mb.state.objects[mb.state.objects.length-1].w*ratio; mb.render(); }; img.src=tc.toDataURL();
+});
+
+/* ── Equation editor ── */
+const eqInput=document.getElementById('eqInput');
+const eqPreview=document.getElementById('eqPreview');
+function updateEqPreview(){
+  if(!window.katex) return;
+  try{ katex.render(eqInput.value||'\square', eqPreview, {throwOnError:false,displayMode:true,output:'html'}); }
+  catch(e){ eqPreview.textContent=e.message; }
+}
+eqInput.addEventListener('input',updateEqPreview);
+document.querySelectorAll('.eq-sym').forEach(btn=>btn.addEventListener('click',()=>{
+  const pos=eqInput.selectionStart; const v=eqInput.value;
+  eqInput.value=v.slice(0,pos)+btn.dataset.eq+v.slice(pos);
+  eqInput.selectionStart=eqInput.selectionEnd=pos+btn.dataset.eq.length;
+  eqInput.focus(); updateEqPreview();
+}));
+window.openEquationModal=(board)=>{
+  window._eqTargetBoard=board; eqInput.value=''; eqPreview.innerHTML='';
+  document.getElementById('equationModal').classList.add('show');
+  setTimeout(()=>eqInput.focus(),80);
+};
+document.getElementById('eqCancel').addEventListener('click',()=>document.getElementById('equationModal').classList.remove('show'));
+
+async function _insertEquationOnBoard(latex, board, modalId){
+  if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
+  /* Render KaTeX into a visible-but-off-screen div so html2canvas can capture it */
+  const c = document.createElement('div');
+  c.style.cssText='position:fixed;left:0;top:-9999px;padding:16px 22px;font-size:32px;background:#fff;display:inline-block;min-width:60px;';
+  document.body.appendChild(c);
+  try{ katex.render(latex, c, {throwOnError:false,displayMode:true}); }
+  catch(e){ c.textContent=latex; }
+  await document.fonts.ready;
+  const W = Math.max(c.scrollWidth, 80), H = Math.max(c.scrollHeight, 50);
+  if(!window.html2canvas){ document.body.removeChild(c); alert('Renderer not ready, try again in a second.'); return; }
+  let canvas;
+  try{ canvas = await html2canvas(c, {backgroundColor:'#ffffff',scale:2,logging:false,useCORS:true,allowTaint:true}); }
+  catch(e){ document.body.removeChild(c); alert('Equation render failed: '+e.message); return; }
+  document.body.removeChild(c);
+  const dataUrl = canvas.toDataURL('image/png');
+  const img = new Image(); img.src = dataUrl;
+  img.onload = ()=>{
+    board.state.objects.push({
+      id: Math.random().toString(36).slice(2), type:'image',
+      bornAt: Date.now(), owner:'student',
+      x:50, y:80, w:W, h:H, src:dataUrl, _imgEl:img
+    });
+    board.render();
+    document.getElementById(modalId).classList.remove('show');
+  };
+}
+
+document.getElementById('eqInsert').addEventListener('click',async()=>{
+  const board=window._eqTargetBoard; const latex=eqInput.value.trim();
+  if(!board||!latex) return;
+  await _insertEquationOnBoard(latex, board, 'equationModal');
+});
+document.getElementById('monitorEqBtn').addEventListener('click',()=>{ if(window.monitorBoard) window.openEquationModal(window.monitorBoard); });
 document.getElementById('monitorHintBtn').addEventListener('click', ()=> window.openHintModal());
 document.getElementById('monitorLockBtn').addEventListener('click', ()=>{
-  if(!monitorStudent) return;
-  monitorStudent.locked = !monitorStudent.locked;
-  monitorStudent.status = monitorStudent.locked ? 'locked' : 'active';
-  document.getElementById('monitorLockBanner').classList.toggle('show', monitorStudent.locked);
-  document.getElementById('monitorLockBtn').textContent = monitorStudent.locked ? '🔓 Unlock' : '🔒 Lock';
-  if(monitorBoard) monitorBoard.setLocked(monitorStudent.locked);
+  if(!window.monitorStudent) return;
+  window.monitorStudent.locked = !window.monitorStudent.locked;
+  window.monitorStudent.status = window.monitorStudent.locked ? 'locked' : 'active';
+  document.getElementById('monitorLockBanner').classList.toggle('show', window.monitorStudent.locked);
+  document.getElementById('monitorLockBtn').textContent = window.monitorStudent.locked ? '🔓 Unlock' : '🔒 Lock';
+  if(window.monitorBoard) window.monitorBoard.setLocked(window.monitorStudent.locked);
   const c = currentClassroom();
-  if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:monitorStudent.id, locked:monitorStudent.locked});
+  socket.emit('teacher:lock', {code:classCode(c), studentId:window.monitorStudent.id, locked:window.monitorStudent.locked});
+});
+document.getElementById('monitorExpand').addEventListener('click',()=>{
+  const modal=document.querySelector('#monitorModal .modal');
+  const isFs=modal.classList.toggle('fs');
+  document.getElementById('monitorExpand').textContent=isFs?'⊙':'⛶';
+  // Recompute transform scale factor on window environment layout
+  setTimeout(()=>{
+    if(!window.monitorBoard || !window.monitorStudent || !window._monitorOpts) return;
+    const wrap=document.getElementById('monitorWrap');
+    const r=wrap.getBoundingClientRect();
+    const {refW=1100, refH=650} = window._monitorOpts;
+    window._monitorOpts.viewScale = Math.min(r.width/refW, r.height/refH);
+    window.monitorBoard.resize();
+  }, 60);
 });
 document.getElementById('monitorModalClose').addEventListener('click', ()=>{
+  const modal=document.querySelector('#monitorModal .modal');
+  modal.classList.remove('fs');
+  document.getElementById('monitorExpand').textContent='⛶';
   document.getElementById('monitorModal').classList.remove('show');
-  if(monitorStudent && monitorBoard){
-    const merged = mergedAnnotateObjects(monitorStudent, monitorBoard);
-    monitorStudent.objects = merged;
-    monitorStudent.status = monitorStudent.locked ? 'locked' : (merged.length ? 'active':'idle');
+  if(window.monitorStudent && window.monitorBoard){
+    const merged = mergedAnnotateObjects(window.monitorStudent, window.monitorBoard);
+    window.monitorStudent.objects = merged;
+    window.monitorStudent.status = window.monitorStudent.locked ? 'locked' : (merged.length ? 'active':'idle');
     const c = currentClassroom();
-    if(c.connected) socket.emit('teacher:annotate', {code:c.inviteCode, studentId:monitorStudent.id, objects: stripImgEl(merged)});
+    socket.emit('teacher:annotate', {code:classCode(c), studentId:window.monitorStudent.id, objects: stripImgEl(merged)});
   }
   renderMonitor();
 });
 
-/* hint modal (used by Live Monitor cards/expand modal) */
+/* hint modal wiring */
 const hintModal = document.getElementById('hintModal');
 const hintText = document.getElementById('hintText');
 window.openHintModal = ()=>{ hintText.value=''; hintModal.classList.add('show'); hintText.focus(); };
 document.getElementById('hintCancel').addEventListener('click', ()=> hintModal.classList.remove('show'));
 document.getElementById('hintSend').addEventListener('click', ()=>{
   const msg = hintText.value.trim();
-  if(msg && monitorStudent){
+  if(msg && window.monitorStudent){
     const modalOpen = document.getElementById('monitorModal').classList.contains('show');
-    if(modalOpen && monitorBoard){
-      monitorBoard.insertSticky(msg, '#FFCB52');
-    } else if(monitorStudent.__board){
-      monitorStudent.__board.insertSticky(msg, '#FFCB52');
+    if(modalOpen && window.monitorBoard){
+      window.monitorBoard.insertSticky(msg, '#FFCB52');
+    } else if(window.monitorStudent.__board){
+      window.monitorStudent.__board.insertSticky(msg, '#FFCB52');
     }
     const c = currentClassroom();
-    if(c.connected) socket.emit('teacher:hint', {code:c.inviteCode, studentId:monitorStudent.id, text:msg});
+    socket.emit('teacher:hint', {code:classCode(c), studentId:window.monitorStudent.id, text:msg});
   }
   hintModal.classList.remove('show');
 });
@@ -1604,7 +1941,7 @@ function renderAssignments(){
   document.getElementById('assignmentBuilder').style.display = 'none';
   list.style.display = 'flex';
   if(!c.assignments.length){
-    list.innerHTML = '<div class="empty-state"><div class="big">📝</div>No assignments yet for this classroom. Create one to get started.</div>';
+    list.innerHTML = '<div class="empty-state"><div class="big">📝</div>No assignments yet for this classroom.</div>';
     return;
   }
   list.innerHTML = c.assignments.map(a=>
@@ -1613,7 +1950,6 @@ function renderAssignments(){
         '<h3>'+a.title+'</h3>'+
         '<span class="muted">'+a.questions.length+' question'+(a.questions.length===1?'':'s')+
           (a.timeLimitMin? ' · '+a.timeLimitMin+' min limit' : '')+
-          (a.scheduleAt? ' · scheduled '+new Date(a.scheduleAt).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '')+
         '</span>'+
       '</div>'+
       '<span class="status-tag '+a.status+'">'+a.status+'</span>'+
@@ -1625,12 +1961,6 @@ function renderAssignments(){
     '</div>'
   ).join('');
   list.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=> openBuilder(b.dataset.edit)));
-  list.querySelectorAll('[data-dup]').forEach(b=> b.addEventListener('click', ()=>{
-    const a = c.assignments.find(x=>x.id===b.dataset.dup);
-    const copy = JSON.parse(JSON.stringify(a, (k,v)=> k==='__board' ? undefined : v));
-    copy.id = uid(); copy.title = a.title + ' (copy)'; copy.status='draft';
-    c.assignments.push(copy); renderAssignments();
-  }));
   list.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', ()=>{
     c.assignments = c.assignments.filter(x=>x.id!==b.dataset.del); renderAssignments();
   }));
@@ -1638,17 +1968,13 @@ function renderAssignments(){
 
 document.getElementById('newAssignmentBtn').addEventListener('click', ()=> openBuilder(null));
 document.getElementById('cancelBuilderBtn').addEventListener('click', ()=>{
-  destroyDraftBoards();
+  draftQuestions.forEach(q=> q.__board && q.__board.destroy());
+  draftQuestions = [];
   renderAssignments();
 });
 
-function destroyDraftBoards(){
-  draftQuestions.forEach(q=> q.__board && q.__board.destroy());
-  draftQuestions = [];
-}
-
 function openBuilder(assignmentId){
-  destroyDraftBoards();
+  draftQuestions.forEach(q=> q.__board && q.__board.destroy());
   editingAssignmentId = assignmentId;
   const c = currentClassroom();
   const existing = assignmentId ? c.assignments.find(a=>a.id===assignmentId) : null;
@@ -1656,7 +1982,6 @@ function openBuilder(assignmentId){
   document.getElementById('assignmentBuilder').style.display = 'block';
   document.getElementById('aTitle').value = existing ? existing.title : '';
   document.getElementById('aTimeLimit').value = existing && existing.timeLimitMin ? existing.timeLimitMin : '';
-  document.getElementById('aSchedule').value = existing && existing.scheduleAt ? existing.scheduleAt : '';
   document.getElementById('questionList').innerHTML = '';
   draftQuestions = [];
   if(existing && existing.questions.length){
@@ -1678,20 +2003,14 @@ function addQuestionBlock(existingQ){
   block.dataset.qid = qid;
   block.innerHTML =
     '<button class="iconbtn danger q-remove" data-removeq>✕</button>'+
-    '<div class="muted" style="margin-bottom:6px;">Question '+draftQuestions.length+' — write it like you would on the whiteboard</div>'+
     '<div class="canvas-wrap medium" id="qwrap-'+qid+'"><canvas id="qcanvas-'+qid+'"></canvas></div>'+
     '<div class="q-toolrow">'+
       '<button class="iconbtn" data-kbdtoggle>🔢 Math Keys</button>'+
-      '<button class="iconbtn" data-imgbtn>🖼️ Attach Image</button>'+
-      '<input type="file" accept="image/*" style="display:none" data-imginput>'+
-      '<button class="iconbtn" data-pdfbtn>📄 Attach PDF</button>'+
-      '<input type="file" accept="application/pdf" style="display:none" data-pdfinput>'+
     '</div>'+
     '<div class="kbd-drawer" data-kbd></div>'+
     '<div id="pdfchip-'+qid+'"></div>'+
-    '<label class="mc-toggle"><input type="checkbox" data-mc'+(q.mc?' checked':'')+'> This is multiple-choice (auto-graded)</label>'+
-    '<div class="mc-options'+(q.mc?' show':'')+'" data-mcoptions></div>'+
-    '<button class="iconbtn" data-addoption style="margin-top:6px; display:'+(q.mc?'inline-block':'none')+';">+ Add option</button>';
+    '<label class="mc-toggle"><input type="checkbox" data-mc'+(q.mc?' checked':'')+'> Multiple-choice</label>'+
+    '<div class="mc-options'+(q.mc?' show':'')+'" data-mcoptions></div>';
   document.getElementById('questionList').appendChild(block);
 
   const wrap = document.getElementById('qwrap-'+qid);
@@ -1702,59 +2021,9 @@ function addQuestionBlock(existingQ){
   board.render();
 
   buildKeyboard(block.querySelector('[data-kbd]'), ()=>board);
-
   block.querySelector('[data-kbdtoggle]').addEventListener('click', ()=>{
-    const drawer = block.querySelector('[data-kbd]');
-    drawer.classList.toggle('open');
-    if(!drawer.classList.contains('open')) board.finishEdit();
+    block.querySelector('[data-kbd]').classList.toggle('open');
   });
-  block.querySelector('[data-imgbtn]').addEventListener('click', ()=> block.querySelector('[data-imginput]').click());
-  block.querySelector('[data-imginput]').addEventListener('change', (e)=>{
-    if(e.target.files[0]) board.insertImageFromFile(e.target.files[0]);
-    e.target.value='';
-  });
-  block.querySelector('[data-pdfbtn]').addEventListener('click', ()=> block.querySelector('[data-pdfinput]').click());
-  block.querySelector('[data-pdfinput]').addEventListener('change', (e)=>{
-    const file = e.target.files[0];
-    if(file){ q.pdfAttachment = {name:file.name, url:URL.createObjectURL(file)}; renderPdfChip(); }
-    e.target.value='';
-  });
-  function renderPdfChip(){
-    const el = document.getElementById('pdfchip-'+qid);
-    el.innerHTML = q.pdfAttachment ?
-      '<span class="pdf-chip">📄 <a href="'+q.pdfAttachment.url+'" target="_blank" rel="noopener">'+q.pdfAttachment.name+'</a><button data-removepdf>✕</button></span>' : '';
-    if(q.pdfAttachment) el.querySelector('[data-removepdf]').addEventListener('click', ()=>{ q.pdfAttachment=null; renderPdfChip(); });
-  }
-  renderPdfChip();
-
-  block.querySelector('[data-mc]').addEventListener('change', (e)=>{
-    q.mc = e.target.checked;
-    block.querySelector('[data-mcoptions]').classList.toggle('show', q.mc);
-    block.querySelector('[data-addoption]').style.display = q.mc ? 'inline-block' : 'none';
-  });
-  block.querySelector('[data-addoption]').addEventListener('click', ()=>{
-    q.options.push({id:uid(), text:'', correct:false});
-    renderOptions();
-  });
-  function renderOptions(){
-    const optWrap = block.querySelector('[data-mcoptions]');
-    optWrap.innerHTML = q.options.map(o=>
-      '<div class="mc-option" data-opt="'+o.id+'">'+
-        '<input type="radio" name="correct-'+qid+'" '+(o.correct?'checked':'')+'>'+
-        '<input type="text" placeholder="Answer option" value="'+(o.text||'').replace(/"/g,'&quot;')+'">'+
-        '<button class="iconbtn danger" data-removeopt>✕</button>'+
-      '</div>'
-    ).join('');
-    optWrap.querySelectorAll('[data-opt]').forEach(row=>{
-      const oid = row.dataset.opt;
-      const opt = q.options.find(x=>x.id===oid);
-      row.querySelector('input[type=radio]').addEventListener('change', ()=>{ q.options.forEach(o=> o.correct=false); opt.correct=true; });
-      row.querySelector('input[type=text]').addEventListener('input', (e)=>{ opt.text = e.target.value; });
-      row.querySelector('[data-removeopt]').addEventListener('click', ()=>{ q.options = q.options.filter(o=>o.id!==oid); renderOptions(); });
-    });
-  }
-  renderOptions();
-
   block.querySelector('[data-removeq]').addEventListener('click', ()=>{
     board.destroy();
     draftQuestions = draftQuestions.filter(x=>x.id!==qid);
@@ -1770,8 +2039,8 @@ function saveAssignment(status){
   draftQuestions.forEach(q=>{ q.objects = q.__board.state.objects; });
   const payload = {
     id: editingAssignmentId || uid(), title, timeLimitMin, scheduleAt,
-    status: status==='publish' ? (scheduleAt && new Date(scheduleAt) > new Date() ? 'scheduled' : 'active') : 'draft',
-    questions: draftQuestions.map(q=> ({id:q.id, objects:q.objects, mc:q.mc, options:q.options, pdfAttachment:q.pdfAttachment}))
+    status: status==='publish' ? 'active' : 'draft',
+    questions: draftQuestions.map(q=> ({id:q.id, objects:q.objects, mc:q.mc}))
   };
   if(editingAssignmentId){
     const idx = c.assignments.findIndex(a=>a.id===editingAssignmentId);
@@ -1795,45 +2064,27 @@ function renderAnalytics(){
   const c = currentClassroom();
   const body = document.getElementById('analyticsBody');
   if(!c.analytics){
-    body.innerHTML = '<div class="empty-state"><div class="big">📊</div>No data yet for this classroom — analytics appear once students start working through assignments.</div>';
+    body.innerHTML = '<div class="empty-state"><div class="big">📊</div>No analytical tracking feeds logged yet.</div>';
     return;
   }
   const a = c.analytics;
-  const maxWeekly = Math.max(...a.weekly);
   const sparkPoints = a.weekly.map((v,i)=> (i*(280/(a.weekly.length-1))) + ',' + (60 - (v/100)*55)).join(' ');
 
   body.innerHTML =
     '<div class="stat-tiles">'+
       '<div class="stat-tile"><div class="num">'+a.avgAccuracy+'%</div><div class="label">Average accuracy</div></div>'+
-      '<div class="stat-tile"><div class="num">'+a.avgTime+'</div><div class="label">Avg. time per problem</div></div>'+
-      '<div class="stat-tile"><div class="num">'+a.activeToday+'</div><div class="label">Active today</div></div>'+
-      '<div class="stat-tile"><div class="num">'+a.completed+'</div><div class="label">Assignments completed</div></div>'+
     '</div>'+
     '<div class="panel"><h3>Accuracy by topic</h3><div class="bars">'+
       a.topics.map(([label,pct])=>
         '<div class="bar-col"><div class="bar-pct">'+pct+'%</div><div class="bar" style="height:'+(pct)+'%;"></div><div class="bar-label">'+label+'</div></div>'
       ).join('')+
     '</div></div>'+
-    '<div class="panel"><h3>Progress over the last 6 weeks</h3>'+
-      '<svg width="100%" height="70" viewBox="0 0 290 70" preserveAspectRatio="none">'+
-        '<polyline points="'+sparkPoints+'" fill="none" stroke="#3FB3A4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+
-      '</svg>'+
-    '</div>'+
-    '<div class="two-col">'+
-      '<div class="panel"><h3>Common mistakes</h3>'+
-        a.mistakes.map(([txt,count])=> '<div class="mistake-item"><span class="mistake-count">'+count+'×</span> '+txt+'</div>').join('')+
-      '</div>'+
-      '<div class="panel"><h3>Topics</h3>'+
-        a.mastered.map(t=> '<span class="pill-tag mastered">✓ '+t+'</span>').join('')+
-        a.review.map(t=> '<span class="pill-tag review">↻ '+t+'</span>').join('')+
-      '</div>'+
-    '</div>'+
     '<div class="panel"><h3>Session history</h3><div id="sessionList"></div></div>';
 
   const sessionList = document.getElementById('sessionList');
   sessionList.innerHTML = a.sessions.map(s=>
     '<div class="session-row">'+
-      '<div class="session-meta"><b>'+s.label+'</b> · '+s.date+' · '+s.durationMin+' min · '+s.accuracy+' accuracy</div>'+
+      '<div class="session-meta"><b>'+s.label+'</b> · '+s.date+'</div>'+
       '<button class="iconbtn" data-replay="'+s.id+'">▶ Replay</button>'+
     '</div>'
   ).join('');
@@ -1842,7 +2093,7 @@ function renderAnalytics(){
 
 let replayTimer = null;
 function openReplay(session){
-  document.getElementById('replayTitle').textContent = session.label + ' — ' + session.date;
+  document.getElementById('replayTitle').textContent = session.label;
   const wrap = document.getElementById('replayWrap');
   wrap.querySelector('canvas').remove();
   const canvas = document.createElement('canvas');
@@ -1863,25 +2114,11 @@ function openReplay(session){
     document.getElementById('replayTime').textContent = session.frames[i].label;
     scrubber.value = i;
   }
-  scrubber.oninput = ()=>{ clearInterval(replayTimer); showFrame(parseInt(scrubber.value,10)); document.getElementById('replayPlay').textContent='▶'; };
-
-  const playBtn = document.getElementById('replayPlay');
-  playBtn.textContent = '▶';
-  playBtn.onclick = ()=>{
-    if(replayTimer){ clearInterval(replayTimer); replayTimer=null; playBtn.textContent='▶'; return; }
-    playBtn.textContent='⏸';
-    replayTimer = setInterval(()=>{
-      let i = parseInt(scrubber.value,10) + 1;
-      if(i >= session.frames.length){ clearInterval(replayTimer); replayTimer=null; playBtn.textContent='▶'; return; }
-      showFrame(i);
-    }, 1300);
-  };
-
+  scrubber.oninput = () => { clearInterval(replayTimer); showFrame(parseInt(scrubber.value,10)); };
   document.getElementById('replayModal').classList.add('show');
 }
 document.getElementById('replayClose').addEventListener('click', ()=>{
-  clearInterval(replayTimer); replayTimer=null;
-  document.getElementById('replayModal').classList.remove('show');
+  clearInterval(replayTimer); document.getElementById('replayModal').classList.remove('show');
 });
 
 /* fraction modal wiring (shared) */
@@ -1902,282 +2139,93 @@ if(fracModalEl){
 }
 
 /* =========================================================
-   Auth boot
+   Auth — delegates to standalone auth script below IIFE
    ========================================================= */
-
-/* ── password eye toggles ── */
-document.querySelectorAll('.pw-eye').forEach(btn=>btn.addEventListener('click',()=>{
-  const inp=document.getElementById(btn.dataset.eye);if(!inp)return;
-  inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';
-}));
-
-let authToken = localStorage.getItem('slate_teacher_token') || null;
-let currentTeacherName = '';
-
-function genPassword(){const words=['star','blue','math','chalk','learn','spark','grid'];const n=Math.floor(Math.random()*900)+100;return words[Math.floor(Math.random()*words.length)]+n;}
-
-async function apiPost(url, body, token){
-  const headers={'Content-Type':'application/json'};
-  if(token) headers['Authorization']='Bearer '+token;
-  const res=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
-  return res.json();
-}
-async function apiPatch(url, body, token){
-  const res=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-  return res.json();
-}
-async function apiGet(url, token){
-  const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
-  return res.json();
-}
-async function apiDelete(url, token){
-  const res=await fetch(url,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
-  return res.json();
-}
-
-function showDashboard(name){
-  currentTeacherName=name;
+window._dashCallbacks = window._dashCallbacks || [];
+window._showDashboard = function(name, token){
+  // called by the standalone auth script after login/register
+  if(token) window._authToken = token;
+  const authToken = window._authToken || '';
+  const currentTeacherName = name;
   document.getElementById('tLoginPage').classList.remove('show');
   document.getElementById('tRegisterPage').classList.remove('show');
   document.getElementById('appShell').style.display='flex';
   document.getElementById('sidebarName').textContent=name;
-  renderClassrooms();
-}
-function showLoginPage(msg, isSuccess){
+  (async()=>{
+    try{
+      const data = await fetch('/api/classrooms',{headers:{'Authorization':'Bearer '+authToken}}).then(r=>r.json());
+      if(data.ok && data.classrooms.length){
+        data.classrooms.forEach(srv=>{
+          const existing = classrooms.find(c=>classCode(c)===srv.code);
+          if(!existing){
+            classrooms.push({id:uid(),name:srv.name,serverCode:srv.code,inviteCode:srv.code,connected:true,students:srv.students||[],assignments:[],analytics:null});
+          } else { existing.students=srv.students||[]; }
+        });
+      }
+    }catch(e){}
+    renderClassrooms();
+  })();
+};
+window._signOut = function(){
+  window._authToken=null;
+  localStorage.removeItem('slate_teacher_token');
   document.getElementById('appShell').style.display='none';
-  document.getElementById('tRegisterPage').classList.remove('show');
   document.getElementById('tLoginPage').classList.add('show');
-  if(msg){
-    const el=document.getElementById('tLoginErr');
-    el.textContent=msg;el.style.color=isSuccess?'var(--teal-dark)':'var(--red)';
-    setTimeout(()=>{el.textContent='';el.style.color='';},4000);
-  }
-}
+};
+document.getElementById('tSignOutBtn').addEventListener('click',()=>window._signOut());
 
-/* sign out */
-document.getElementById('tSignOutBtn').addEventListener('click',()=>{
-  authToken=null;localStorage.removeItem('slate_teacher_token');showLoginPage();
+/* authToken alias for functions inside IIFE that still reference it */
+Object.defineProperty(window,'authToken',{
+  get(){ return window._authToken||null; },
+  set(v){ window._authToken=v; }
 });
-
-/* login */
-document.getElementById('tLoginBtn').addEventListener('click',doLogin);
-document.getElementById('tLoginPw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-async function doLogin(){
-  const email=document.getElementById('tLoginEmail').value.trim();
-  const pw=document.getElementById('tLoginPw').value;
-  const errEl=document.getElementById('tLoginErr');
-  errEl.textContent='Signing in…';errEl.style.color='var(--ink-soft)';
-  try{
-    const res=await apiPost('/api/teacher/login',{email,password:pw});
-    if(!res.ok){errEl.textContent=res.error||'Incorrect email or password.';errEl.style.color='var(--red)';return;}
-    authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
-    errEl.textContent='';showDashboard(res.name);
-  }catch(e){errEl.textContent='Could not reach the server.';errEl.style.color='var(--red)';}
-}
-
-/* register */
-document.getElementById('tToRegister').addEventListener('click',()=>{document.getElementById('tLoginPage').classList.remove('show');document.getElementById('tRegisterPage').classList.add('show');});
-document.getElementById('tToLogin').addEventListener('click',()=>{document.getElementById('tRegisterPage').classList.remove('show');document.getElementById('tLoginPage').classList.add('show');});
-document.getElementById('tRegBtn').addEventListener('click',async()=>{
-  const name=document.getElementById('tRegName').value.trim();
-  const email=document.getElementById('tRegEmail').value.trim();
-  const pw=document.getElementById('tRegPw').value;
-  const pw2=document.getElementById('tRegPw2').value;
-  const errEl=document.getElementById('tRegErr');
-  if(!name){errEl.textContent='Please enter your name.';return;}
-  if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email.';return;}
-  if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';return;}
-  if(pw!==pw2){errEl.textContent='Passwords do not match.';return;}
-  errEl.textContent='Creating account…';errEl.style.color='var(--ink-soft)';
-  try{
-    const res=await apiPost('/api/teacher/register',{name,email,password:pw});
-    if(!res.ok){errEl.textContent=res.error||'Registration failed.';errEl.style.color='var(--red)';return;}
-    authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
-    errEl.textContent='';showDashboard(res.name);
-  }catch(e){errEl.textContent='Could not reach the server.';errEl.style.color='var(--red)';}
-});
-
-/* pass token on classroom:create */
-const _origCreate=document.getElementById('classroomCreate');
-// (handled below by overriding classroomCreate click)
 
 /* ── Students section ── */
-let editPwUsername=null;let credsUsername=null;let credsPassword=null;
-
 async function renderStudents(){
   const wrap=document.getElementById('studentsTableWrap');
   const [studData,invData]=await Promise.all([apiGet('/api/students',authToken),apiGet('/api/invitations/sent',authToken)]);
-  if(!studData.ok){wrap.innerHTML='<div class="empty-state"><div class="big">⚠️</div>Could not load student accounts.</div>';return;}
+  if(!studData.ok) return;
   const list=studData.students;
   const sentInvites=invData.ok?invData.invitations:[];
-  if(!list.length){wrap.innerHTML='<div class="empty-state"><div class="big">👥</div>No student accounts yet. Click "+ Add Student" to create one.</div>';return;}
+  if(!list.length) return;
   const rows=list.map(s=>{
     const classroom=classrooms.find(c=>c.inviteCode===s.classroomCode||c.serverCode===s.classroomCode);
     const pendingInvite=sentInvites.find(i=>i.studentUsername===s.username&&i.status==='pending');
-    const perms=s.permissions||{annotate:true,lock:true,editProfile:true};
-    const permHtml=[
-      `<span class="perm-badge${perms.annotate===false?' denied':''}" title="${perms.annotate===false?'Revoked':'Can annotate'}">${perms.annotate===false?'✏️✗':'✏️'}</span>`,
-      `<span class="perm-badge${perms.lock===false?' denied':''}" title="${perms.lock===false?'Revoked':'Can lock'}">${perms.lock===false?'🔒✗':'🔒'}</span>`,
-      `<span class="perm-badge${perms.editProfile===false?' denied':''}" title="${perms.editProfile===false?'Revoked':'Can edit profile'}">${perms.editProfile===false?'👤✗':'👤'}</span>`
-    ].join(' ');
-    let classroomCell;
-    if(classroom){classroomCell=`<span class="invite-status-accepted">✓ ${classroom.name}</span>`;}
-    else if(pendingInvite){classroomCell=`<span class="invite-status-pending">⏳ Pending: ${pendingInvite.classroomName}</span> <button class="iconbtn" style="font-size:10px;padding:2px 6px;" data-cancelinvite="${pendingInvite.id}" title="Cancel invite">✕</button>`;}
-    else{classroomCell=`<span class="invite-status-none">No classroom</span>`;}
-    const inviteBtn=(!classroom&&!pendingInvite)?`<button class="iconbtn" data-invitestudent="${s.username}" data-invitename="${s.name}" style="color:var(--teal-dark);font-weight:800;">📬 Invite</button>`:'';
+    let classroomCell = classroom ? `<span class="invite-status-accepted">✓ ${classroom.name}</span>` : 
+                        (pendingInvite ? `<span class="invite-status-pending">⏳ Pending</span>` : `<span class="invite-status-none">No classroom</span>`);
     return `<tr>
-      <td><span class="st-name"><span style="font-size:15px;">${s.avatar||'🙂'}</span> ${s.name}</span></td>
-      <td><span class="st-username">${s.username}</span></td>
+      <td>${s.name}</td>
+      <td>${s.username}</td>
       <td>${classroomCell}</td>
-      <td>${permHtml}</td>
-      <td><div class="st-actions">
-        ${inviteBtn}
-        <button class="iconbtn" data-creds="${s.username}" data-name="${s.name}" title="View credentials">📋</button>
-        <button class="iconbtn" data-editpw="${s.username}" data-name="${s.name}" title="Change password">🔑</button>
-        <button class="iconbtn danger" data-delstu="${s.username}" title="Delete account">🗑️</button>
-      </div></td>
+      <td><button class="iconbtn danger" data-delstu="${s.username}">🗑️</button></td>
     </tr>`;
   }).join('');
-  wrap.innerHTML=`<table class="students-table"><thead><tr><th>Student</th><th>Username</th><th>Classroom Status</th><th>Permissions</th><th style="text-align:right">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
-  wrap.querySelectorAll('[data-creds]').forEach(b=>b.addEventListener('click',()=>openCredsModal(b.dataset.creds,b.dataset.name)));
-  wrap.querySelectorAll('[data-editpw]').forEach(b=>b.addEventListener('click',()=>openEditPw(b.dataset.editpw,b.dataset.name)));
-  wrap.querySelectorAll('[data-delstu]').forEach(b=>b.addEventListener('click',async()=>{
-    if(!confirm('Delete account for '+b.dataset.delstu+'?'))return;
-    await apiDelete('/api/students/'+b.dataset.delstu,authToken);renderStudents();
-  }));
-  wrap.querySelectorAll('[data-invitestudent]').forEach(b=>b.addEventListener('click',()=>openInviteModal(b.dataset.invitestudent,b.dataset.invitename)));
-  wrap.querySelectorAll('[data-cancelinvite]').forEach(b=>b.addEventListener('click',async()=>{
-    await apiDelete('/api/invitations/'+b.dataset.cancelinvite,authToken);renderStudents();
-  }));
+  wrap.innerHTML=`<table class="students-table"><tbody>${rows}</tbody></table>`;
 }
+
 document.getElementById('addStudentBtn').addEventListener('click',()=>{
-  document.getElementById('asName').value='';document.getElementById('asUsername').value='';document.getElementById('asPw').value='';document.getElementById('addStudentErr').textContent='';
   const sel=document.getElementById('asClassroom');
   sel.innerHTML='<option value="">— no classroom yet —</option>'+classrooms.map(c=>`<option value="${c.inviteCode||c.serverCode}">${c.name}</option>`).join('');
-  document.getElementById('addStudentModal').classList.add('show');setTimeout(()=>document.getElementById('asName').focus(),80);
+  document.getElementById('addStudentModal').classList.add('show');
 });
-document.getElementById('asName').addEventListener('input',()=>{const n=document.getElementById('asName').value.trim();if(!document.getElementById('asUsername').value){document.getElementById('asUsername').value=n.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').slice(0,18);}});
-document.getElementById('genPwBtn').addEventListener('click',()=>{document.getElementById('asPw').value=genPassword();document.getElementById('asPw').type='text';});
 document.getElementById('addStudentCancel').addEventListener('click',()=>document.getElementById('addStudentModal').classList.remove('show'));
 document.getElementById('addStudentSave').addEventListener('click',async()=>{
   const name=document.getElementById('asName').value.trim();
   const username=document.getElementById('asUsername').value.trim().toLowerCase();
   const pw=document.getElementById('asPw').value;
   const classroomCode=document.getElementById('asClassroom').value||null;
-  const errEl=document.getElementById('addStudentErr');
-  if(!name){errEl.textContent='Please enter the student\'s name.';return;}
-  if(!username||username.length<2){errEl.textContent='Username must be at least 2 characters.';return;}
-  if(pw.length<4){errEl.textContent='Password must be at least 4 characters.';return;}
-  const res=await apiPost('/api/students',{name,username,password:pw,avatar:'🙂',classroomCode},authToken);
-  if(!res.ok){errEl.textContent=res.error||'Could not create account.';return;}
+  await apiPost('/api/students',{name,username,password:pw,avatar:'🙂',classroomCode},authToken);
   document.getElementById('addStudentModal').classList.remove('show');
-  // store raw pw for credentials display (server only stores the hash)
-  sessionStorage.setItem('pw_'+username,pw);
   renderStudents();
 });
 
-
-let inviteStudentUsername = null;
-function openInviteModal(username, name){
-  inviteStudentUsername=username;
-  document.getElementById('inviteStudentName').value=name+' ('+username+')';
-  const sel=document.getElementById('inviteClassSelect');
-  sel.innerHTML='<option value="">— choose a classroom —</option>'+classrooms.map(c=>`<option value="${c.serverCode||c.inviteCode}">${c.name}</option>`).join('');
-  document.getElementById('inviteErr').textContent='';
-  document.getElementById('inviteModal').classList.add('show');
-}
-document.getElementById('inviteCancel').addEventListener('click',()=>document.getElementById('inviteModal').classList.remove('show'));
-
-/* ── Email invite via mailto: ── */
-let _emailInviteClassroom=null;
 function openEmailInvite(c){
-  _emailInviteClassroom=c;
   const url=joinUrl(c);
   document.getElementById('emailInviteLinkInput').value=url;
-  document.getElementById('emailInviteAddr').value='';
-  document.getElementById('emailInvitePreview').style.display='none';
   document.getElementById('emailInviteModal').classList.add('show');
-  setTimeout(()=>document.getElementById('emailInviteAddr').focus(),80);
 }
 document.getElementById('emailInviteCancel').addEventListener('click',()=>document.getElementById('emailInviteModal').classList.remove('show'));
-document.getElementById('emailInviteAddr').addEventListener('input',()=>{
-  const email=document.getElementById('emailInviteAddr').value.trim();
-  const c=_emailInviteClassroom;
-  if(!c||!email) return;
-  const url=joinUrl(c);
-  document.getElementById('emailInvitePreview').style.display='block';
-  document.getElementById('emailInvitePreview').innerHTML=
-    '<b>Subject:</b> You\'re invited to '+c.name+' on Slate<br>'+
-    '<b>Body:</b> Open this link to join and start working: '+url;
-});
-document.getElementById('emailInviteOpen').addEventListener('click',()=>{
-  const email=document.getElementById('emailInviteAddr').value.trim();
-  const c=_emailInviteClassroom; if(!c||!email) return;
-  const url=joinUrl(c);
-  const sub=encodeURIComponent('Invitation to join '+c.name+' on Slate');
-  const body=encodeURIComponent(
-    'Hello!\n\nYou have been invited to join '+c.name+' on Slate.\n\n'+
-    'Just click the link below, type your name, and you can start working right away:\n\n'+
-    url+'\n\nNo app to download, no account required.\n\nSee you in class!'
-  );
-  window.open('mailto:'+encodeURIComponent(email)+'?subject='+sub+'&body='+body);
-});
-document.getElementById('emailInviteLink').addEventListener('click',()=>{
-  const inp=document.getElementById('emailInviteLinkInput');
-  const fb=document.getElementById('emailInviteCopyFb');
-  const url=inp.value;
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(()=>{fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);});
-  } else {
-    const ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();
-    try{document.execCommand('copy');fb.textContent='✓ Copied!';setTimeout(()=>{fb.textContent='';},1800);}catch(e){}
-    ta.remove();
-  }
-});
-document.getElementById('inviteSend').addEventListener('click',async()=>{
-  const code=document.getElementById('inviteClassSelect').value;
-  const errEl=document.getElementById('inviteErr');
-  if(!code){errEl.textContent='Please select a classroom.';return;}
-  errEl.textContent='Sending…';errEl.style.color='var(--ink-soft)';
-  const res=await apiPost('/api/invitations',{studentUsername:inviteStudentUsername,classroomCode:code},authToken);
-  if(!res.ok){errEl.textContent=res.error||'Could not send invitation.';errEl.style.color='var(--red)';return;}
-  document.getElementById('inviteModal').classList.remove('show');
-  renderStudents();
-});
 
-function openCredsModal(username,name){
-  credsUsername=username;
-  document.getElementById('credsTitle').textContent=name+' — credentials';
-  const pw=sessionStorage.getItem('pw_'+username)||'(hidden — reset to see it)';
-  document.getElementById('credsBox').innerHTML=`Username: <b>${username}</b><br>Password: <b>${pw}</b>`;
-  document.getElementById('credsModal').classList.add('show');
-}
-document.getElementById('credsClose').addEventListener('click',()=>document.getElementById('credsModal').classList.remove('show'));
-document.getElementById('credsCopy').addEventListener('click',()=>{
-  const pw=sessionStorage.getItem('pw_'+credsUsername)||'(see teacher dashboard)';
-  const text=`Slate login\nUsername: ${credsUsername}\nPassword: ${pw}`;
-  navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{});
-  document.getElementById('credsCopy').textContent='✅ Copied!';setTimeout(()=>document.getElementById('credsCopy').textContent='📋 Copy credentials',2000);
-});
-
-function openEditPw(username,name){
-  editPwUsername=username;
-  document.getElementById('editPwTitle').textContent='Change password for '+name;
-  document.getElementById('editPwInput').value='';document.getElementById('editPwErr').textContent='';
-  document.getElementById('editPwModal').classList.add('show');setTimeout(()=>document.getElementById('editPwInput').focus(),80);
-}
-document.getElementById('editGenPwBtn').addEventListener('click',()=>{document.getElementById('editPwInput').value=genPassword();document.getElementById('editPwInput').type='text';});
-document.getElementById('editPwCancel').addEventListener('click',()=>document.getElementById('editPwModal').classList.remove('show'));
-document.getElementById('editPwSave').addEventListener('click',async()=>{
-  const pw=document.getElementById('editPwInput').value.trim();
-  if(pw.length<4){document.getElementById('editPwErr').textContent='Password must be at least 4 characters.';return;}
-  const res=await apiPatch('/api/students/'+editPwUsername,{password:pw},authToken);
-  if(!res.ok){document.getElementById('editPwErr').textContent=res.error||'Could not update password.';return;}
-  sessionStorage.setItem('pw_'+editPwUsername,pw);
-  document.getElementById('editPwModal').classList.remove('show');
-});
-
-/* ── Nav: add students screen ── */
 document.querySelectorAll('.navitem').forEach(btn=>btn.addEventListener('click',()=>{
   document.querySelectorAll('.navitem').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -2191,60 +2239,124 @@ document.querySelectorAll('.navitem').forEach(btn=>btn.addEventListener('click',
   if(name==='analytics')  renderAnalytics();
 }));
 
-/* ── PDF render helper (shared by teacher and question builder) ── */
-async function renderPdfToBoard(file, targetBoard){
-  if(!window.pdfjsLib){ console.warn('pdf.js not loaded'); return; }
-  const buf=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-  const totalPages=pdf.numPages;
-  let pageNum=1;
-  if(totalPages>1){
-    const p=parseInt(prompt('PDF has '+totalPages+' pages. Which page? (1-'+totalPages+')'),10);
-    if(p>=1&&p<=totalPages) pageNum=p;
-  }
-  const page=await pdf.getPage(pageNum);
-  const viewport=page.getViewport({scale:1.8});
-  const c=document.createElement('canvas');
-  c.width=viewport.width; c.height=viewport.height;
-  await page.render({canvasContext:c.getContext('2d'),viewport}).promise;
-  const dataUrl=c.toDataURL('image/png');
-  const img=new Image();
-  img.onload=()=>{
-    const maxW=Math.min(500, targetBoard.state.objects.reduce((mx,o)=>Math.max(mx, (o.type==='image'?o.x+o.w:0)),0)||500);
-    const ratio=img.naturalHeight/img.naturalWidth;
-    const obj=newObj('image',{x:24,y:24,w:maxW,h:maxW*ratio,src:dataUrl,owner:'teacher'});
-    obj._imgEl=img;
-    targetBoard.state.objects.push(obj);
-    targetBoard.render();
-    if(targetBoard.opts&&targetBoard.opts.onSync) targetBoard.opts.onSync(targetBoard.state.objects);
-  };
-  img.src=dataUrl;
-}
-
-
-/* ── Dark / Light mode ── */
 function setTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   localStorage.setItem('slate_theme',t);
-  const btn=document.getElementById('themeToggle');
-  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
 }
 setTheme(localStorage.getItem('slate_theme')||'light');
 document.getElementById('themeToggle').addEventListener('click',()=>{
   setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 });
 
-/* ── Boot: check saved token, then show login or dashboard ── */
-(async()=>{
-  if(authToken){
-    try{
-      const me=await apiPost('/api/auth/me',{token:authToken});
-      if(me.ok&&me.type==='teacher'){showDashboard(me.name);return;}
-    }catch(e){}
-    authToken=null;localStorage.removeItem('slate_teacher_token');
-  }
-  document.getElementById('tLoginPage').classList.add('show');
 })();
+</script>
+
+
+<!-- ╔══════════════════════════════════════════════════════════╗
+     ║  STANDALONE AUTH — runs independently of the main IIFE  ║
+     ║  This is the restored, proven-working auth code.        ║
+     ╚══════════════════════════════════════════════════════════╝ -->
+<script>
+(function(){
+  /* Helpers */
+  async function apiPost(url,body,token){
+    var h={'Content-Type':'application/json'};
+    if(token) h['Authorization']='Bearer '+token;
+    var r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    return r.json();
+  }
+
+  /* Password eye toggle */
+  document.querySelectorAll('.pw-eye').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var inp=document.getElementById(btn.dataset.eye);
+      if(!inp)return;
+      inp.type=inp.type==='password'?'text':'password';
+      btn.textContent=inp.type==='password'?'👁':'🙈';
+    });
+  });
+
+  /* Show/hide login vs register page */
+  document.getElementById('tToRegister').addEventListener('click',function(){
+    document.getElementById('tLoginPage').classList.remove('show');
+    document.getElementById('tRegisterPage').classList.add('show');
+    document.getElementById('tRegErr').textContent='';
+  });
+  document.getElementById('tToLogin').addEventListener('click',function(){
+    document.getElementById('tRegisterPage').classList.remove('show');
+    document.getElementById('tLoginPage').classList.add('show');
+    document.getElementById('tLoginErr').textContent='';
+  });
+
+  /* Login */
+  function doLogin(){
+    var email=document.getElementById('tLoginEmail').value.trim();
+    var pw=document.getElementById('tLoginPw').value;
+    var errEl=document.getElementById('tLoginErr');
+    var btn=document.getElementById('tLoginBtn');
+    if(!email){errEl.textContent='Please enter your email.';return;}
+    if(!pw){errEl.textContent='Please enter your password.';return;}
+    errEl.textContent=''; btn.textContent='Signing in…'; btn.disabled=true;
+    apiPost('/api/teacher/login',{email:email,password:pw}).then(function(res){
+      btn.textContent='Sign In'; btn.disabled=false;
+      if(!res.ok){errEl.textContent=res.error||'Incorrect email or password.';return;}
+      window._authToken=res.token;
+      localStorage.setItem('slate_teacher_token',res.token);
+      window._showDashboard&&window._showDashboard(res.name,res.token);
+    }).catch(function(){
+      btn.textContent='Sign In'; btn.disabled=false;
+      errEl.textContent='Server unreachable. If on Render free tier, wait 30s and try again.';
+    });
+  }
+  document.getElementById('tLoginBtn').addEventListener('click',doLogin);
+  document.getElementById('tLoginPw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+  document.getElementById('tLoginEmail').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+
+  /* Register */
+  function doRegister(){
+    var name=document.getElementById('tRegName').value.trim();
+    var email=document.getElementById('tRegEmail').value.trim();
+    var pw=document.getElementById('tRegPw').value;
+    var pw2=document.getElementById('tRegPw2').value;
+    var errEl=document.getElementById('tRegErr');
+    var btn=document.getElementById('tRegBtn');
+    if(!name){errEl.textContent='Please enter your name.';return;}
+    if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email.';return;}
+    if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';return;}
+    if(pw!==pw2){errEl.textContent='Passwords do not match.';return;}
+    errEl.textContent=''; btn.textContent='Creating account…'; btn.disabled=true;
+    apiPost('/api/teacher/register',{name:name,email:email,password:pw}).then(function(res){
+      btn.textContent='Create Account'; btn.disabled=false;
+      if(!res.ok){errEl.textContent=res.error||'Could not create account.';return;}
+      window._authToken=res.token;
+      localStorage.setItem('slate_teacher_token',res.token);
+      window._showDashboard&&window._showDashboard(res.name,res.token);
+    }).catch(function(){
+      btn.textContent='Create Account'; btn.disabled=false;
+      errEl.textContent='Server unreachable. If on Render free tier, wait 30s and try again.';
+    });
+  }
+  document.getElementById('tRegBtn').addEventListener('click',doRegister);
+  document.getElementById('tRegPw2').addEventListener('keydown',function(e){if(e.key==='Enter')doRegister();});
+
+  /* Restore session on load */
+  var saved=localStorage.getItem('slate_teacher_token');
+  if(saved){
+    window._authToken=saved;
+    apiPost('/api/auth/me',{token:saved}).then(function(me){
+      if(me&&me.ok&&me.type==='teacher'){
+        window._showDashboard&&window._showDashboard(me.name,saved);
+      } else {
+        localStorage.removeItem('slate_teacher_token');
+        window._authToken=null;
+        document.getElementById('tLoginPage').classList.add('show');
+      }
+    }).catch(function(){
+      document.getElementById('tLoginPage').classList.add('show');
+    });
+  } else {
+    document.getElementById('tLoginPage').classList.add('show');
+  }
 })();
 </script>
 </body>
