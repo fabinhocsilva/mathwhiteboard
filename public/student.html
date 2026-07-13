@@ -444,6 +444,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
 <script src="/socket.io/socket.io.js"></script>
@@ -1341,6 +1342,7 @@ function wireToolbar(){
     if(widthBtn){ board.setWidth(parseInt(widthBtn.dataset.width,10)); toolbar.querySelectorAll('.wbtn').forEach(b=>b.classList.remove('active')); widthBtn.classList.add('active'); return; }
   });
   document.getElementById('undoBtn').addEventListener('click', ()=>{ window.setFocusedBoard(board); board.undo(); });
+  document.getElementById('eqStudentBtn').addEventListener('click', ()=>{ window.setFocusedBoard(board); openEquationModal(board); });
   document.getElementById('redoBtn').addEventListener('click', ()=>{ window.setFocusedBoard(board); board.redo(); });
 
   const clearBtn = document.getElementById('clearBtn');
@@ -1470,34 +1472,38 @@ document.querySelectorAll('.eq-sym').forEach(btn=>btn.addEventListener('click',(
   _eqInput.focus();_updateEqPreview();
 }));
 document.getElementById('eqCancel').addEventListener('click',()=>document.getElementById('equationModal').classList.remove('show'));
-document.getElementById('eqInsert').addEventListener('click',async()=>{
-  const brd=_eqTargetBoard,latex=_eqInput.value.trim();
-  if(!brd||!latex) return;
-  if(!window.katex){alert('KaTeX not loaded yet.');return;}
-  const div=document.createElement('div');
-  div.style.cssText='position:fixed;left:-9999px;top:-9999px;padding:14px 18px;font-size:30px;background:white;';
-  document.body.appendChild(div);
-  katex.render(latex,div,{throwOnError:false,displayMode:true});
-  const w=Math.max(div.scrollWidth,120),h=Math.max(div.scrollHeight,60);
-  const svgStr='<svg xmlns="http://www.w3.org/2000/svg" width="'+(w*2)+'" height="'+(h*2)+'">'
-    +'<foreignObject x="0" y="0" width="'+(w*2)+'" height="'+(h*2)+'">'
-    +'<div xmlns="http://www.w3.org/1999/xhtml" style="padding:14px 18px;font-size:60px;background:white;">'
-    +div.innerHTML+'</div></foreignObject></svg>';
-  document.body.removeChild(div);
-  const blob=new Blob([svgStr],{type:'image/svg+xml'});
-  const url=URL.createObjectURL(blob);
-  const img=new Image();
-  img.onload=()=>{
-    const c2=document.createElement('canvas');c2.width=w*2;c2.height=h*2;
-    const x2=c2.getContext('2d');x2.fillStyle='white';x2.fillRect(0,0,c2.width,c2.height);x2.drawImage(img,0,0);
-    URL.revokeObjectURL(url);
-    const src=c2.toDataURL();
-    const iimg=new Image();iimg.src=src;
-    brd.state.objects.push({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:'student',x:40,y:140,w,h,src,_imgEl:iimg});
-    brd.render();
-    document.getElementById('equationModal').classList.remove('show');
+
+async function _insertEquationOnBoard(latex, board, modalId){
+  if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
+  /* Render KaTeX into a visible-but-off-screen div so html2canvas can capture it */
+  const c = document.createElement('div');
+  c.style.cssText='position:fixed;left:0;top:-9999px;padding:16px 22px;font-size:32px;background:#fff;display:inline-block;min-width:60px;';
+  document.body.appendChild(c);
+  try{ katex.render(latex, c, {throwOnError:false,displayMode:true}); }
+  catch(e){ c.textContent=latex; }
+  await document.fonts.ready;
+  const W = Math.max(c.scrollWidth, 80), H = Math.max(c.scrollHeight, 50);
+  if(!window.html2canvas){ document.body.removeChild(c); alert('Renderer not ready, try again in a second.'); return; }
+  let canvas;
+  try{ canvas = await html2canvas(c, {backgroundColor:'#ffffff',scale:2,logging:false,useCORS:true,allowTaint:true}); }
+  catch(e){ document.body.removeChild(c); alert('Equation render failed: '+e.message); return; }
+  document.body.removeChild(c);
+  const dataUrl = canvas.toDataURL('image/png');
+  const img = new Image(); img.src = dataUrl;
+  img.onload = ()=>{
+    board.state.objects.push({
+      id: Math.random().toString(36).slice(2), type:'image',
+      bornAt: Date.now(), owner:'student',
+      x:50, y:80, w:W, h:H, src:dataUrl, _imgEl:img
+    });
+    board.render();
+    document.getElementById(modalId).classList.remove('show');
   };
-  img.src=url;
+}
+
+document.getElementById('eqInsert').addEventListener('click',async()=>{
+  if(!_eqTargetBoard||!_eqInput.value.trim()) return;
+  await _insertEquationOnBoard(_eqInput.value.trim(), _eqTargetBoard, 'equationModal');
 });
 
 })();

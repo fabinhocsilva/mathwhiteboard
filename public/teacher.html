@@ -286,6 +286,9 @@
   .perm-badge.denied{background:#FCEAEA;color:var(--red);}
   .copy-feedback{font-size:11px;color:var(--teal-dark);font-weight:800;}
   .theme-toggle{border:none;background:var(--cloud);border-radius:999px;padding:6px 10px;font-size:16px;cursor:pointer;}
+  .fkbd-row{display:flex;flex-wrap:wrap;gap:5px;}
+  .fkey{border:none;background:var(--cloud);border-radius:9px;min-width:34px;height:36px;padding:0 9px;font-size:17px;font-family:var(--font-math);box-shadow:0 1px 3px rgba(0,0,0,.07);cursor:pointer;}
+  .fkey:hover{background:var(--lavender);color:#fff;}
 </style>
 </head>
 <body>
@@ -654,6 +657,7 @@
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
@@ -1688,13 +1692,88 @@ document.getElementById('monitorImgInput').addEventListener('change',e=>{
   const mb=window.monitorBoard; if(!file||!mb) return;
   mb.insertImageFromFile(file);
 });
+/* ── Floating keyboard for teacher annotation board ── */
+const TKBD_CATS = {
+  ops:  { keys: [['+','+'],['-','-'],['×','×'],['÷','÷'],['=','=']] },
+  alg:  { keys: [['x','x'],['y','y'],['z','z'],['a','a'],['b','b'],['c','c']] },
+  sym:  { keys: [['(','('],[')',')'],['%','%'],['π','π'],['√','√'],['∞','∞'],['≠','≠'],['≤','≤'],['≥','≥'],['°','°']] },
+  exp:  { keys: [['x²','x^2'],['x³','x^3'],['xⁿ','x^n'],['x₁','x_1'],['x₂','x_2'],['^','^'],['_','_']] },
+  frac: { special:'fraction' },
+  geo:  { keys: [['∠','∠'],['△','△'],['⊥','⊥'],['∥','∥'],['Σ','Σ'],['μ','μ'],['σ','σ'],['∫','∫'],['Δ','Δ'],['∂','∂']] }
+};
+const tActiveCats = new Set(['ops']);
+function buildTKbdKeys(){
+  const container = document.getElementById('floatKbdKeys');
+  if(!container) return;
+  container.innerHTML = '';
+  const numRow = document.createElement('div'); numRow.className='fkbd-row';
+  for(let i=1;i<=9;i++) numRow.innerHTML += '<button class="fkey" data-tins="'+i+'">'+i+'</button>';
+  numRow.innerHTML += '<button class="fkey" data-tins="0">0</button>';
+  container.appendChild(numRow);
+  tActiveCats.forEach(catId=>{
+    const cat = TKBD_CATS[catId]; if(!cat) return;
+    if(cat.special==='fraction'){
+      const row=document.createElement('div'); row.className='fkbd-row';
+      row.innerHTML='<button class="fkey" data-tfrac style="font-size:15px;flex:1;min-width:80px;">½ Fraction</button>';
+      container.appendChild(row); return;
+    }
+    const row=document.createElement('div'); row.className='fkbd-row';
+    cat.keys.forEach(([l,v])=>{ row.innerHTML+='<button class="fkey" data-tins="'+v+'">'+l+'</button>'; });
+    container.appendChild(row);
+  });
+  container.querySelectorAll('[data-tins]').forEach(btn=>btn.addEventListener('click',()=>{
+    const mb=window.monitorBoard; if(!mb) return;
+    mb.insertChar ? mb.insertChar(btn.dataset.tins) : mb.insertFraction(btn.dataset.tins, '');
+  }));
+  container.querySelectorAll('[data-tfrac]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
+  }));
+}
+/* drag */
+(()=>{
+  const fkbd = document.getElementById('floatKbd');
+  const handle = document.getElementById('floatKbdHandle');
+  if(!fkbd||!handle) return;
+  let drag=null;
+  handle.addEventListener('pointerdown',(e)=>{
+    const r=fkbd.getBoundingClientRect();
+    drag={startX:e.clientX,startY:e.clientY,origLeft:r.left,origTop:r.top};
+    try{handle.setPointerCapture(e.pointerId);}catch(err){}
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove',(e)=>{
+    if(!drag) return;
+    let left=drag.origLeft+(e.clientX-drag.startX);
+    let top=drag.origTop+(e.clientY-drag.startY);
+    left=Math.max(4,Math.min(window.innerWidth-fkbd.offsetWidth-4,left));
+    top=Math.max(4,Math.min(window.innerHeight-80,top));
+    fkbd.style.left=left+'px'; fkbd.style.top=top+'px';
+  });
+  handle.addEventListener('pointerup',()=>{drag=null;});
+})();
+/* category toggles — use data-tcat to avoid conflict with student page */
+document.querySelectorAll('[data-tcat]').forEach(btn=>btn.addEventListener('click',()=>{
+  const cat=btn.dataset.tcat;
+  if(tActiveCats.has(cat)){tActiveCats.delete(cat);btn.classList.remove('active');}
+  else{tActiveCats.add(cat);btn.classList.add('active');}
+  buildTKbdKeys();
+}));
+document.getElementById('floatKbdClose').addEventListener('click',()=>{
+  document.getElementById('floatKbd').style.display='none';
+});
 document.getElementById('monitorKbdBtn').addEventListener('click',()=>{
   const fkbd=document.getElementById('floatKbd');
-  if(!fkbd){ alert('Math keyboard not available on this board.'); return; }
   const showing=fkbd.style.display==='block';
   fkbd.style.display=showing?'none':'block';
-  if(!showing&&!fkbd.style.left){ fkbd.style.left='40px'; fkbd.style.top='200px'; }
-  if(!showing) window.setFocusedBoard&&window.setFocusedBoard(window.monitorBoard);
+  if(!showing){
+    if(!fkbd.style.left){
+      const modal=document.getElementById('monitorModal');
+      const r=modal.getBoundingClientRect();
+      fkbd.style.left=Math.max(12,r.left+12)+'px';
+      fkbd.style.top=Math.max(12,r.bottom-400)+'px';
+    }
+    buildTKbdKeys();
+  }
 });
 document.getElementById('annotatePdfBtn').addEventListener('click',()=>document.getElementById('annotatePdfInput').click());
 document.getElementById('annotatePdfInput').addEventListener('change',async e=>{
@@ -1733,37 +1812,39 @@ window.openEquationModal=(board)=>{
   setTimeout(()=>eqInput.focus(),80);
 };
 document.getElementById('eqCancel').addEventListener('click',()=>document.getElementById('equationModal').classList.remove('show'));
+
+async function _insertEquationOnBoard(latex, board, modalId){
+  if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
+  /* Render KaTeX into a visible-but-off-screen div so html2canvas can capture it */
+  const c = document.createElement('div');
+  c.style.cssText='position:fixed;left:0;top:-9999px;padding:16px 22px;font-size:32px;background:#fff;display:inline-block;min-width:60px;';
+  document.body.appendChild(c);
+  try{ katex.render(latex, c, {throwOnError:false,displayMode:true}); }
+  catch(e){ c.textContent=latex; }
+  await document.fonts.ready;
+  const W = Math.max(c.scrollWidth, 80), H = Math.max(c.scrollHeight, 50);
+  if(!window.html2canvas){ document.body.removeChild(c); alert('Renderer not ready, try again in a second.'); return; }
+  let canvas;
+  try{ canvas = await html2canvas(c, {backgroundColor:'#ffffff',scale:2,logging:false,useCORS:true,allowTaint:true}); }
+  catch(e){ document.body.removeChild(c); alert('Equation render failed: '+e.message); return; }
+  document.body.removeChild(c);
+  const dataUrl = canvas.toDataURL('image/png');
+  const img = new Image(); img.src = dataUrl;
+  img.onload = ()=>{
+    board.state.objects.push({
+      id: Math.random().toString(36).slice(2), type:'image',
+      bornAt: Date.now(), owner:'student',
+      x:50, y:80, w:W, h:H, src:dataUrl, _imgEl:img
+    });
+    board.render();
+    document.getElementById(modalId).classList.remove('show');
+  };
+}
+
 document.getElementById('eqInsert').addEventListener('click',async()=>{
   const board=window._eqTargetBoard; const latex=eqInput.value.trim();
   if(!board||!latex) return;
-  if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
-  /* render to hidden div → SVG foreignObject → canvas → image on board */
-  const div=document.createElement('div');
-  div.style.cssText='position:fixed;left:-9999px;top:-9999px;padding:14px 18px;font-size:30px;background:white;';
-  document.body.appendChild(div);
-  katex.render(latex,div,{throwOnError:false,displayMode:true,output:'html'});
-  const w=Math.max(div.scrollWidth,120), h=Math.max(div.scrollHeight,60);
-  const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${w*2}" height="${h*2}">
-    <foreignObject x="0" y="0" width="${w*2}" height="${h*2}">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="padding:14px 18px;font-size:60px;background:white;transform-origin:top left;">
-        ${div.innerHTML}
-      </div>
-    </foreignObject></svg>`;
-  document.body.removeChild(div);
-  const blob=new Blob([svgStr],{type:'image/svg+xml'});
-  const url=URL.createObjectURL(blob);
-  const img=new Image();
-  img.onload=()=>{
-    const c2=document.createElement('canvas'); c2.width=w*2; c2.height=h*2;
-    const x2=c2.getContext('2d'); x2.fillStyle='white'; x2.fillRect(0,0,c2.width,c2.height); x2.drawImage(img,0,0);
-    URL.revokeObjectURL(url);
-    const src=c2.toDataURL();
-    const iimg=new Image(); iimg.src=src;
-    board.state.objects.push({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:board._role||'student',x:40,y:160,w:w,h:h,src,_imgEl:iimg});
-    board.render();
-    document.getElementById('equationModal').classList.remove('show');
-  };
-  img.src=url;
+  await _insertEquationOnBoard(latex, board, 'equationModal');
 });
 document.getElementById('monitorEqBtn').addEventListener('click',()=>{ if(window.monitorBoard) window.openEquationModal(window.monitorBoard); });
 document.getElementById('monitorHintBtn').addEventListener('click', ()=> window.openHintModal());
@@ -2203,5 +2284,27 @@ document.getElementById('themeToggle').addEventListener('click',()=>{
 })();
 })();
 </script>
+
+<!-- Floating Math Keyboard (for annotation modal) -->
+<div id="floatKbd" style="display:none;position:fixed;z-index:200;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
+  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
+    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
+    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
+  </div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
+      <button class="cat-toggle active" data-tcat="ops">+ − × ÷</button>
+      <button class="cat-toggle" data-tcat="alg">x y z</button>
+      <button class="cat-toggle" data-tcat="sym">π √ °</button>
+      <button class="cat-toggle" data-tcat="exp">x² xⁿ</button>
+      <button class="cat-toggle" data-tcat="frac">½</button>
+      <button class="cat-toggle" data-tcat="geo">∠ Σ ∫</button>
+    </div>
+    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">Tap a key to arm it · tap the board to place it</div>
+  </div>
+</div>
+
 </body>
 </html>
