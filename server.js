@@ -294,7 +294,23 @@ app.get('/api/whiteboard/:code', (req, res) => {
   res.json({ ok: true, code: room.code, name: room.name });
 });
 
-/* ── WebSocket events ── */
+/* ── Teacher: list own classrooms (called on page reload to restore state) ── */
+app.get('/api/classrooms', (req, res) => {
+  const teacher = teacherFromReq(req);
+  if (!teacher) return res.status(401).json({ ok: false });
+  const list = Array.from(classrooms.values())
+    .filter(c => c.teacherId === teacher.id)
+    .map(c => ({
+      code: c.code, name: c.name,
+      students: Array.from(c.students.values()).map(s => ({
+        id: s.id, name: s.name, avatar: s.avatar,
+        objects: s.objects, locked: s.locked, status: s.status,
+        canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight,
+        permissions: s.permissions
+      }))
+    }));
+  res.json({ ok: true, classrooms: list });
+});
 io.on('connection', (socket) => {
 
   socket.on('classroom:create', ({ name, token }, cb) => {

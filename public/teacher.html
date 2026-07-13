@@ -1243,8 +1243,20 @@ function reconstructImages(objects){
    Realtime connection — keeps classroom data live
    ========================================================= */
 const socket = io();
+window.socket = socket; // expose for console debugging
 const serverStatus = document.getElementById('serverStatus');
-socket.on('connect', ()=>{ serverStatus.textContent='🟢 Server connected'; serverStatus.className='server-status online'; });
+socket.on('connect', ()=>{
+  serverStatus.textContent='🟢 Server connected'; serverStatus.className='server-status online';
+  // Re-join every known classroom room on (re)connect — this is the reliable place
+  // to do it because by the time the socket reconnects, classrooms[] is already
+  // populated (either from the initial load or from a previous session).
+  if(authToken){
+    classrooms.forEach(c=>{
+      const code=classCode(c);
+      if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
+    });
+  }
+});
 socket.on('disconnect', ()=>{ serverStatus.textContent='🔴 Server disconnected'; serverStatus.className='server-status offline'; });
 socket.on('connect_error', ()=>{ serverStatus.textContent='🔴 Couldn\u2019t reach server'; serverStatus.className='server-status offline'; });
 
@@ -1357,6 +1369,14 @@ function joinUrl(c){
 }
 function renderClassrooms(){
   refreshClassroomSelect();
+  // Ensure the teacher socket is in every classroom's room whenever we render
+  // (covers: first login, page refresh, new classroom just created)
+  if(authToken && socket.connected){
+    classrooms.forEach(c=>{
+      const code=classCode(c);
+      if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
+    });
+  }
   const grid = document.getElementById('classroomGrid');
   grid.innerHTML = classrooms.map(c=>
     '<div class="classroom-card">'+
@@ -2015,12 +2035,27 @@ function showDashboard(name){
   document.getElementById('tRegisterPage').classList.remove('show');
   document.getElementById('appShell').style.display='flex';
   document.getElementById('sidebarName').textContent=name;
-  renderClassrooms();
-  // Re-join all classroom socket rooms (needed after page refresh)
-  classrooms.forEach(c=>{
-    const code=classCode(c);
-    if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
-  });
+  // Fetch teacher's classrooms from the server first (restores state after page reload)
+  apiGet('/api/classrooms', authToken).then(data=>{
+    if(data.ok && data.classrooms.length){
+      // Merge server classrooms with any already in memory (avoid duplicates)
+      data.classrooms.forEach(srv=>{
+        const existing = classrooms.find(c=>classCode(c)===srv.code);
+        if(!existing){
+          classrooms.push({
+            id: uid(), name: srv.name,
+            serverCode: srv.code, inviteCode: srv.code, connected: true,
+            students: srv.students || [], assignments:[], analytics:null
+          });
+        } else {
+          // Update student list from server
+          existing.students = srv.students || [];
+        }
+      });
+      window.classrooms = classrooms;
+    }
+    renderClassrooms();
+  }).catch(()=>renderClassrooms());
 }
 function showLoginPage(msg, isSuccess){
   document.getElementById('appShell').style.display='none';
