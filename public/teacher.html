@@ -226,7 +226,14 @@
   .modal-actions .cancel{background:var(--cloud);}
   .modal-actions .confirm{background:var(--lavender); color:#fff;}
   .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
-  .modal-toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .modal-toolbar{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:0; align-items:center;}
+  .modal-toolbar button{border:none; border-radius:999px; padding:6px 11px; font-size:12px; font-weight:700; background:var(--cloud); cursor:pointer;}
+  .modal-toolbar button.active{background:var(--red); color:#fff;}
+  .modal-sep{width:1px; height:20px; background:var(--line); margin:0 2px; flex-shrink:0;}
+  .mswatch{width:20px!important; height:20px!important; border-radius:50%!important; padding:0!important; border:2px solid #fff!important; box-shadow:0 0 0 1px var(--line);}
+  .mswatch.active{box-shadow:0 0 0 2px var(--ink)!important;}
+  .mwbtn{min-width:28px; font-size:11px!important; padding:4px 7px!important;}
+  .mwbtn.active{background:var(--ink)!important; color:#fff!important;}
   .modal-toolbar button{border:none; border-radius:999px; padding:7px 12px; font-size:13px; font-weight:700; background:var(--cloud);}
   .modal-toolbar button.active{background:var(--red); color:#fff;}
 
@@ -526,13 +533,34 @@
         <button class="iconbtn" id="monitorModalClose">✖</button>
       </div>
     </div>
-    <div class="modal-toolbar" id="monitorModalToolbar">
-      <button data-mtool="pen" class="active">✏️ Correct</button>
-      <button data-mtool="highlight">🟨 Highlight</button>
-      <button data-mtool="eraser">🧹 Erase</button>
-      <button id="monitorFracBtn" title="Insert fraction">½ Frac</button>
-      <button id="monitorHintBtn">💡 Hint</button>
-      <button id="monitorLockBtn">🔒 Lock</button>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+      <div class="modal-toolbar" id="monitorModalToolbar">
+        <button data-mtool="pen" class="active">✏️ Correct</button>
+        <button data-mtool="highlight">🟨 Highlight</button>
+        <button data-mtool="eraser">🧹 Erase</button>
+        <div class="modal-sep"></div>
+        <button class="mswatch active" data-mcolor="#E5484D" style="background:#E5484D" title="Red"></button>
+        <button class="mswatch" data-mcolor="#E76B3C" style="background:#E76B3C" title="Orange"></button>
+        <button class="mswatch" data-mcolor="#2C8E82" style="background:#2C8E82" title="Teal"></button>
+        <button class="mswatch" data-mcolor="#3F7FE0" style="background:#3F7FE0" title="Blue"></button>
+        <button class="mswatch" data-mcolor="#9A8FC9" style="background:#9A8FC9" title="Purple"></button>
+        <button class="mswatch" data-mcolor="#2F2B3D" style="background:#2F2B3D" title="Black"></button>
+        <div class="modal-sep"></div>
+        <button class="mwbtn" data-mwidth="2">S</button>
+        <button class="mwbtn active" data-mwidth="4">M</button>
+        <button class="mwbtn" data-mwidth="8">L</button>
+        <div class="modal-sep"></div>
+        <button id="monitorFracBtn" title="Fraction">½</button>
+        <button id="monitorEqBtn" title="Equation editor">∑ Eq</button>
+        <button id="monitorImgBtn" title="Insert image">🖼️</button>
+        <input type="file" id="monitorImgInput" accept="image/*" style="display:none">
+        <button id="annotatePdfBtn" title="Upload PDF">📄</button>
+        <input type="file" id="annotatePdfInput" accept="application/pdf" style="display:none">
+        <button id="monitorKbdBtn" title="Math keys">🔢</button>
+        <div class="modal-sep"></div>
+        <button id="monitorHintBtn">💡 Hint</button>
+        <button id="monitorLockBtn">🔒 Lock</button>
+      </div>
     </div>
     <div class="canvas-wrap big" id="monitorWrap">
       <canvas id="monitorCanvas"></canvas>
@@ -571,6 +599,46 @@
   </div>
 </div>
 
+<!-- Equation Editor modal -->
+<div class="modal-overlay" id="equationModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>∑ Equation Editor</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 10px;">Type a LaTeX expression. Click a symbol to insert it.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;padding:8px;background:var(--cloud);border-radius:10px;">
+      <button class="eq-sym" data-eq="\frac{a}{b}">a/b</button>
+      <button class="eq-sym" data-eq="x^{2}">x²</button>
+      <button class="eq-sym" data-eq="x^{n}">xⁿ</button>
+      <button class="eq-sym" data-eq="\sqrt{x}">√x</button>
+      <button class="eq-sym" data-eq="\sqrt[n]{x}">ⁿ√x</button>
+      <button class="eq-sym" data-eq="\pm">±</button>
+      <button class="eq-sym" data-eq="\infty">∞</button>
+      <button class="eq-sym" data-eq="\pi">π</button>
+      <button class="eq-sym" data-eq="\theta">θ</button>
+      <button class="eq-sym" data-eq="\alpha">α</button>
+      <button class="eq-sym" data-eq="\beta">β</button>
+      <button class="eq-sym" data-eq="\Delta">Δ</button>
+      <button class="eq-sym" data-eq="\sum_{i=0}^{n}">Σ</button>
+      <button class="eq-sym" data-eq="\int_{a}^{b}">∫</button>
+      <button class="eq-sym" data-eq="\lim_{x \to 0}">lim</button>
+      <button class="eq-sym" data-eq="\leq">≤</button>
+      <button class="eq-sym" data-eq="\geq">≥</button>
+      <button class="eq-sym" data-eq="\neq">≠</button>
+      <button class="eq-sym" data-eq="\approx">≈</button>
+      <button class="eq-sym" data-eq="\times">×</button>
+      <button class="eq-sym" data-eq="\div">÷</button>
+      <button class="eq-sym" data-eq="\circ">∘</button>
+      <button class="eq-sym" data-eq="^{\circ}">°</button>
+    </div>
+    <label style="font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">LaTeX</label>
+    <textarea id="eqInput" rows="3" placeholder="e.g.  \frac{-b \pm \sqrt{b^2-4ac}}{2a}" style="width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--line);font-family:monospace;font-size:14px;resize:vertical;margin-top:4px;"></textarea>
+    <div style="margin:10px 0;min-height:60px;background:var(--cloud);border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;" id="eqPreview"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="eqCancel">Cancel</button>
+      <button class="confirm" id="eqInsert">Insert on board</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="fractionModal">
   <div class="modal">
     <h3>Build a fraction</h3>
@@ -585,6 +653,8 @@
   </div>
 </div>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
 <script src="/socket.io/socket.io.js"></script>
@@ -833,7 +903,13 @@ function createBoard(cfg){
       ctx.translate(cx,cy); ctx.rotate(-0.03); ctx.translate(-cx,-cy);
       ctx.fillStyle=o.color; roundRect(ctx,o.x,o.y,o.w,o.h,10); ctx.fill();
       ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.font="16px 'Patrick Hand', cursive";
-      wrapText(ctx,o.text,o.x+12,o.y+26,o.w-24,20);
+      wrapText(ctx,o.text,o.x+12,o.y+28,o.w-24,20);
+      /* close ✕ button in top-right */
+      ctx.fillStyle='rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.arc(o.x+o.w-11,o.y+11,9,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=1.8; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(o.x+o.w-15,o.y+7); ctx.lineTo(o.x+o.w-7,o.y+15);
+      ctx.moveTo(o.x+o.w-7,o.y+7); ctx.lineTo(o.x+o.w-15,o.y+15); ctx.stroke();
       ctx.restore();
     }
   }
@@ -885,6 +961,24 @@ function createBoard(cfg){
     if(state.locked && !annotating() && !opts.interactiveLockedPreview) return;
     const {x,y} = localPos(e);
     if(!canDraw()) return;
+
+    /* Sticky: check close button OR start drag with any tool */
+    for(let _i=state.objects.length-1;_i>=0;_i--){
+      const _o=state.objects[_i];
+      if(_o.type!=='sticky') continue;
+      /* close ✕ hit area */
+      if(Math.hypot(x-(_o.x+_o.w-11),y-(_o.y+11))<=12){
+        pushHistory(); state.objects.splice(_i,1); state.selectedId=null; commit(); return;
+      }
+      /* drag — hit anywhere on the sticky body */
+      if(x>=_o.x&&x<=_o.x+_o.w&&y>=_o.y&&y<=_o.y+_o.h){
+        state.selectedId=_o.id;
+        state._dragCandidate={id:_o.id,startX:x,startY:y,orig:JSON.parse(JSON.stringify(_o))};
+        state._stickyDrag=true;
+        render(); return;
+      }
+    }
+
     const tool = activeTool(); const owner = activeOwner();
 
     if(tool==='select'){
@@ -1569,6 +1663,109 @@ function openMonitorModal(studentId){
 document.getElementById('monitorFracBtn').addEventListener('click', ()=>{
   if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
 });
+
+/* ── Annotation toolbar: colors, sizes, image, PDF, keyboard, equation ── */
+document.getElementById('monitorModalToolbar').addEventListener('click', e=>{
+  const mb = window.monitorBoard; if(!mb) return;
+  const ac = mb._annotateConfig;
+  /* color swatches */
+  const cs=e.target.closest('[data-mcolor]');
+  if(cs){ if(ac) ac.color=cs.dataset.mcolor; document.querySelectorAll('.mswatch').forEach(b=>b.classList.remove('active')); cs.classList.add('active'); return; }
+  /* width buttons */
+  const wb=e.target.closest('[data-mwidth]');
+  if(wb){ if(ac) ac.width=parseInt(wb.dataset.mwidth); document.querySelectorAll('.mwbtn').forEach(b=>b.classList.remove('active')); wb.classList.add('active'); return; }
+  /* draw tool buttons */
+  const tb=e.target.closest('[data-mtool]');
+  if(tb){
+    if(ac) ac.tool=tb.dataset.mtool;
+    document.querySelectorAll('[data-mtool]').forEach(b=>b.classList.remove('active')); tb.classList.add('active');
+    return;
+  }
+});
+document.getElementById('monitorImgBtn').addEventListener('click',()=>document.getElementById('monitorImgInput').click());
+document.getElementById('monitorImgInput').addEventListener('change',e=>{
+  const file=e.target.files[0]; e.target.value='';
+  const mb=window.monitorBoard; if(!file||!mb) return;
+  mb.insertImageFromFile(file);
+});
+document.getElementById('monitorKbdBtn').addEventListener('click',()=>{
+  const fkbd=document.getElementById('floatKbd');
+  if(!fkbd){ alert('Math keyboard not available on this board.'); return; }
+  const showing=fkbd.style.display==='block';
+  fkbd.style.display=showing?'none':'block';
+  if(!showing&&!fkbd.style.left){ fkbd.style.left='40px'; fkbd.style.top='200px'; }
+  if(!showing) window.setFocusedBoard&&window.setFocusedBoard(window.monitorBoard);
+});
+document.getElementById('annotatePdfBtn').addEventListener('click',()=>document.getElementById('annotatePdfInput').click());
+document.getElementById('annotatePdfInput').addEventListener('change',async e=>{
+  const file=e.target.files[0]; e.target.value='';
+  const mb=window.monitorBoard; if(!file||!mb) return;
+  if(!window.pdfjsLib){ alert('PDF viewer loading…'); return; }
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let pg=1;
+  if(pdf.numPages>1){ const p=parseInt(prompt('PDF has '+pdf.numPages+' pages. Which page?'),10); if(p>=1&&p<=pdf.numPages) pg=p; }
+  const page=await pdf.getPage(pg);
+  const vp=page.getViewport({scale:1.8});
+  const tc=document.createElement('canvas'); tc.width=vp.width; tc.height=vp.height;
+  await page.render({canvasContext:tc.getContext('2d'),viewport:vp}).promise;
+  const img=new Image(); img.onload=()=>{ mb.state.objects.push(Object.assign({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:'teacher',x:30,y:30,w:Math.min(500,mb.state.objects.reduce((mx,o)=>Math.max(mx,(o.type==='image'?o.x+o.w:0)),0)||500),h:0,src:tc.toDataURL(),_imgEl:img},{h:0})); const ratio=img.naturalHeight/img.naturalWidth; mb.state.objects[mb.state.objects.length-1].h=mb.state.objects[mb.state.objects.length-1].w*ratio; mb.render(); }; img.src=tc.toDataURL();
+});
+
+/* ── Equation editor ── */
+const eqInput=document.getElementById('eqInput');
+const eqPreview=document.getElementById('eqPreview');
+function updateEqPreview(){
+  if(!window.katex) return;
+  try{ katex.render(eqInput.value||'\square', eqPreview, {throwOnError:false,displayMode:true,output:'html'}); }
+  catch(e){ eqPreview.textContent=e.message; }
+}
+eqInput.addEventListener('input',updateEqPreview);
+document.querySelectorAll('.eq-sym').forEach(btn=>btn.addEventListener('click',()=>{
+  const pos=eqInput.selectionStart; const v=eqInput.value;
+  eqInput.value=v.slice(0,pos)+btn.dataset.eq+v.slice(pos);
+  eqInput.selectionStart=eqInput.selectionEnd=pos+btn.dataset.eq.length;
+  eqInput.focus(); updateEqPreview();
+}));
+window.openEquationModal=(board)=>{
+  window._eqTargetBoard=board; eqInput.value=''; eqPreview.innerHTML='';
+  document.getElementById('equationModal').classList.add('show');
+  setTimeout(()=>eqInput.focus(),80);
+};
+document.getElementById('eqCancel').addEventListener('click',()=>document.getElementById('equationModal').classList.remove('show'));
+document.getElementById('eqInsert').addEventListener('click',async()=>{
+  const board=window._eqTargetBoard; const latex=eqInput.value.trim();
+  if(!board||!latex) return;
+  if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
+  /* render to hidden div → SVG foreignObject → canvas → image on board */
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;left:-9999px;top:-9999px;padding:14px 18px;font-size:30px;background:white;';
+  document.body.appendChild(div);
+  katex.render(latex,div,{throwOnError:false,displayMode:true,output:'html'});
+  const w=Math.max(div.scrollWidth,120), h=Math.max(div.scrollHeight,60);
+  const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${w*2}" height="${h*2}">
+    <foreignObject x="0" y="0" width="${w*2}" height="${h*2}">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="padding:14px 18px;font-size:60px;background:white;transform-origin:top left;">
+        ${div.innerHTML}
+      </div>
+    </foreignObject></svg>`;
+  document.body.removeChild(div);
+  const blob=new Blob([svgStr],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const c2=document.createElement('canvas'); c2.width=w*2; c2.height=h*2;
+    const x2=c2.getContext('2d'); x2.fillStyle='white'; x2.fillRect(0,0,c2.width,c2.height); x2.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    const src=c2.toDataURL();
+    const iimg=new Image(); iimg.src=src;
+    board.state.objects.push({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:board._role||'student',x:40,y:160,w:w,h:h,src,_imgEl:iimg});
+    board.render();
+    document.getElementById('equationModal').classList.remove('show');
+  };
+  img.src=url;
+});
+document.getElementById('monitorEqBtn').addEventListener('click',()=>{ if(window.monitorBoard) window.openEquationModal(window.monitorBoard); });
 document.getElementById('monitorHintBtn').addEventListener('click', ()=> window.openHintModal());
 document.getElementById('monitorLockBtn').addEventListener('click', ()=>{
   if(!window.monitorStudent) return;

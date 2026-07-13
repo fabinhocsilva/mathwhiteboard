@@ -317,6 +317,7 @@
       <button class="tbtn danger" id="clearBtn" title="Clear my work">🗑️</button>
       <div class="sep"></div>
       <button class="tbtn" id="pdfUploadBtn" title="Upload PDF">📄 PDF</button>
+      <button class="tbtn" id="eqStudentBtn" title="Equation editor">∑ Eq</button>
       <input type="file" id="pdfInput" accept="application/pdf" style="display:none">
       <button class="tbtn" id="kbdToggleBtn" title="Math keyboard">🔢 Math Keys</button>
     </div>
@@ -402,6 +403,47 @@
   </div>
 </div>
 
+<!-- Equation Editor -->
+<div class="modal-overlay" id="equationModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>∑ Equation Editor</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 10px;">Type a LaTeX expression. Click a symbol to insert it.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;padding:8px;background:var(--cloud);border-radius:10px;">
+      <button class="eq-sym" data-eq="\frac{a}{b}">a/b</button>
+      <button class="eq-sym" data-eq="x^{2}">x²</button>
+      <button class="eq-sym" data-eq="x^{n}">xⁿ</button>
+      <button class="eq-sym" data-eq="\sqrt{x}">√x</button>
+      <button class="eq-sym" data-eq="\sqrt[n]{x}">ⁿ√x</button>
+      <button class="eq-sym" data-eq="\pm">±</button>
+      <button class="eq-sym" data-eq="\infty">∞</button>
+      <button class="eq-sym" data-eq="\pi">π</button>
+      <button class="eq-sym" data-eq="\theta">θ</button>
+      <button class="eq-sym" data-eq="\alpha">α</button>
+      <button class="eq-sym" data-eq="\beta">β</button>
+      <button class="eq-sym" data-eq="\Delta">Δ</button>
+      <button class="eq-sym" data-eq="\sum_{i=0}^{n}">Σ</button>
+      <button class="eq-sym" data-eq="\int_{a}^{b}">∫</button>
+      <button class="eq-sym" data-eq="\lim_{x \to 0}">lim</button>
+      <button class="eq-sym" data-eq="\leq">≤</button>
+      <button class="eq-sym" data-eq="\geq">≥</button>
+      <button class="eq-sym" data-eq="\neq">≠</button>
+      <button class="eq-sym" data-eq="\approx">≈</button>
+      <button class="eq-sym" data-eq="\times">×</button>
+      <button class="eq-sym" data-eq="\div">÷</button>
+      <button class="eq-sym" data-eq="^{\circ}">°</button>
+    </div>
+    <label style="font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">LaTeX</label>
+    <textarea id="eqInput" rows="3" placeholder="e.g.  \frac{-b \pm \sqrt{b^2-4ac}}{2a}" style="width:100%;padding:9px;border-radius:10px;border:1.5px solid var(--line);font-family:monospace;font-size:14px;resize:vertical;margin-top:4px;"></textarea>
+    <div style="margin:10px 0;min-height:60px;background:var(--cloud);border-radius:10px;padding:10px;display:flex;align-items:center;justify-content:center;" id="eqPreview"></div>
+    <div class="modal-actions">
+      <button class="cancel" id="eqCancel">Cancel</button>
+      <button class="confirm" id="eqInsert">Insert on board</button>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
 <script src="/socket.io/socket.io.js"></script>
@@ -667,6 +709,21 @@ function createBoard(cfg){
     const {x,y} = localPos(e);
     if(!canDraw()) return;
     if(state.armed){ placeArmedAt(x,y); return; }
+
+    /* Sticky: close ✕ or drag */
+    for(let _i=state.objects.length-1;_i>=0;_i--){
+      const _o=state.objects[_i];
+      if(_o.type!=='sticky') continue;
+      if(Math.hypot(x-(_o.x+_o.w-11),y-(_o.y+11))<=12){
+        pushHist();state.objects.splice(_i,1);state.selectedId=null;commit();return;
+      }
+      if(x>=_o.x&&x<=_o.x+_o.w&&y>=_o.y&&y<=_o.y+_o.h){
+        state.selectedId=_o.id;
+        state._dragCandidate={id:_o.id,startX:x,startY:y,orig:JSON.parse(JSON.stringify(_o))};
+        state._stickyDrag=true;render();return;
+      }
+    }
+
     const tool = activeTool(); const owner = activeOwner();
     if(tool==='select'){
       if(state.selectedId){
@@ -1086,7 +1143,7 @@ function enterWorkspaceGuest(name,avatar,classroomName,savedObjects){
       if(o.type==='image'&&o.src){const im=new Image();im.onload=()=>board.render();im.src=o.src;o._imgEl=im;}return o;});
   } else {
     board.state.objects=[newObj('sticky',{x:24,y:20,w:220,h:92,
-      text:'Welcome, '+name+'! ✍️ Your teacher can see your work.',color:'#FFCB52',owner:'teacher',bornAt:0})];
+      text:'Welcome, '+name+'! ✍️ Write or draw here. Your teacher can see your work live.',color:'#FFCB52',owner:'teacher',bornAt:0})];
   }
   board.render();
   if(socket.connected)socket.emit('student:sync',{objects:board.state.objects,canvasWidth:wrap.clientWidth,canvasHeight:wrap.clientHeight});
@@ -1244,7 +1301,7 @@ function enterWorkspace(name, avatar, classroomName){
   window.setFocusedBoard(board);
   window.board = board; // expose so teacher:stroke:live handler can reach it
   board.state.objects = [
-    newObj('sticky', {x: 24, y: 20, w: 220, h: 92, text: 'Welcome, '+name+'! ✍️ Your teacher can see your work and send hints as you go.', color:'#FFCB52', owner:'teacher', bornAt:0})
+    newObj('sticky', {x: 24, y: 20, w: 220, h: 92, text: 'Welcome, '+name+'! ✍️ Write or draw here. Your teacher can see your work live.', color:'#FFCB52', owner:'teacher', bornAt:0})
   ];
   board.render();
   if(socket.connected) socket.emit('student:sync', {objects: board.state.objects, canvasWidth: wrap.clientWidth, canvasHeight: wrap.clientHeight});
@@ -1396,6 +1453,51 @@ window.addEventListener('paste',(e)=>{
   e.preventDefault();
   const blob=imgItem.getAsFile();
   board.insertImageFromFile(blob);
+});
+
+
+/* ── Equation Editor ── */
+const _eqInput=document.getElementById('eqInput');
+const _eqPreview=document.getElementById('eqPreview');
+let _eqTargetBoard=null;
+function openEquationModal(b){ _eqTargetBoard=b; _eqInput.value=''; _eqPreview.innerHTML=''; document.getElementById('equationModal').classList.add('show'); setTimeout(()=>_eqInput.focus(),80); }
+function _updateEqPreview(){ if(!window.katex)return; try{katex.render(_eqInput.value||'\\square',_eqPreview,{throwOnError:false,displayMode:true});}catch(e){_eqPreview.textContent=e.message;} }
+_eqInput.addEventListener('input',_updateEqPreview);
+document.querySelectorAll('.eq-sym').forEach(btn=>btn.addEventListener('click',()=>{
+  const pos=_eqInput.selectionStart,v=_eqInput.value;
+  _eqInput.value=v.slice(0,pos)+btn.dataset.eq+v.slice(pos);
+  _eqInput.selectionStart=_eqInput.selectionEnd=pos+btn.dataset.eq.length;
+  _eqInput.focus();_updateEqPreview();
+}));
+document.getElementById('eqCancel').addEventListener('click',()=>document.getElementById('equationModal').classList.remove('show'));
+document.getElementById('eqInsert').addEventListener('click',async()=>{
+  const brd=_eqTargetBoard,latex=_eqInput.value.trim();
+  if(!brd||!latex) return;
+  if(!window.katex){alert('KaTeX not loaded yet.');return;}
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;left:-9999px;top:-9999px;padding:14px 18px;font-size:30px;background:white;';
+  document.body.appendChild(div);
+  katex.render(latex,div,{throwOnError:false,displayMode:true});
+  const w=Math.max(div.scrollWidth,120),h=Math.max(div.scrollHeight,60);
+  const svgStr='<svg xmlns="http://www.w3.org/2000/svg" width="'+(w*2)+'" height="'+(h*2)+'">'
+    +'<foreignObject x="0" y="0" width="'+(w*2)+'" height="'+(h*2)+'">'
+    +'<div xmlns="http://www.w3.org/1999/xhtml" style="padding:14px 18px;font-size:60px;background:white;">'
+    +div.innerHTML+'</div></foreignObject></svg>';
+  document.body.removeChild(div);
+  const blob=new Blob([svgStr],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const c2=document.createElement('canvas');c2.width=w*2;c2.height=h*2;
+    const x2=c2.getContext('2d');x2.fillStyle='white';x2.fillRect(0,0,c2.width,c2.height);x2.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    const src=c2.toDataURL();
+    const iimg=new Image();iimg.src=src;
+    brd.state.objects.push({id:Math.random().toString(36).slice(2),type:'image',bornAt:Date.now(),owner:'student',x:40,y:140,w,h,src,_imgEl:iimg});
+    brd.render();
+    document.getElementById('equationModal').classList.remove('show');
+  };
+  img.src=url;
 });
 
 })();
