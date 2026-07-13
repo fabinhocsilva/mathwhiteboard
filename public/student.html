@@ -835,7 +835,8 @@ function createBoard(cfg){
   const boardHandle = {
     state, render, undo, redo, setTool, setColor, setWidth, setLocked, destroy,
     armSymbol, armFraction, disarm, insertSticky,
-    insertImageFromFile, clearMine, deleteSelected
+    insertImageFromFile, clearMine, deleteSelected,
+    setStableValid: (v)=>{ stableValid=v; }
   };
   return boardHandle;
 }

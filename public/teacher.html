@@ -1044,6 +1044,7 @@ function createBoard(cfg){
     state, render, undo, redo, setTool, setColor, setWidth, setLocked, destroy,
     insertChar, backspace, finishEdit, insertFraction, insertSticky,
     insertImageFromFile, clearMine, deleteSelected, ensureActiveText,
+    setStableValid: ()=>{}, // stub — teacher boards use full render on every update
     get activeEditId(){ return state.activeEditId; }
   };
   return boardHandle;
@@ -1253,7 +1254,7 @@ socket.on('stroke:live', data=>{
     s.__board.render();
   }
   /* Update open annotate modal (teacher sees live strokes while modal is open) */
-  const annotateModalEl=document.getElementById('monitorModal');
+  const annotateModalEl=document.getElementById('annotateModal');
   const modalOpen=annotateModalEl&&annotateModalEl.classList.contains('show');
   if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
     let path=annotateBoard.state.objects.find(o=>o.id===data.pathId);
@@ -1273,27 +1274,33 @@ socket.on('roster:update', (data)=>{
   if(!c) return;
   const prevById = {}; c.students.forEach(s=> prevById[s.id]=s);
   c.students = data.students.map(s=> Object.assign({accuracy:'—'}, prevById[s.id]||{}, s, {objects: reconstructImages(s.objects)}));
-  if(currentClassroomId===c.id && document.querySelector('.screen.active').dataset.screen==='monitor') renderMonitor();
+  if(currentClassroomId===c.id && (document.querySelector('.screen.active')||{dataset:{}}).dataset.screen==='monitor') renderMonitor();
 });
 socket.on('student:objects', (data)=>{
-  const c = classrooms.find(x=>x.connected && x.inviteCode===data.code);
+  const c = classrooms.find(x=>x.connected&&(x.inviteCode===data.code||x.serverCode===data.code));
   if(!c) return;
-  const s = c.students.find(x=>x.id===data.studentId);
+  const s = (c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
   s.objects = reconstructImages(data.objects);
-  const sizeChanged = (data.canvasWidth && data.canvasWidth!==s.canvasWidth) || (data.canvasHeight && data.canvasHeight!==s.canvasHeight);
-  if(data.canvasWidth) s.canvasWidth = data.canvasWidth;
-  if(data.canvasHeight) s.canvasHeight = data.canvasHeight;
-  const monitorVisible = currentClassroomId===c.id && document.querySelector('.screen.active').dataset.screen==='monitor';
-  if(sizeChanged && monitorVisible){
-    renderMonitor(); // rebuild thumbnails with the now-correct scale
+  const sizeChanged = (data.canvasWidth&&data.canvasWidth!==s.canvasWidth)||(data.canvasHeight&&data.canvasHeight!==s.canvasHeight);
+  if(data.canvasWidth) s.canvasWidth=data.canvasWidth;
+  if(data.canvasHeight) s.canvasHeight=data.canvasHeight;
+  const monitorVisible = currentClassroomId===c.id&&(document.querySelector('.screen.active')||{dataset:{}}).dataset.screen==='monitor';
+  if(sizeChanged&&monitorVisible){
+    renderMonitor();
   } else if(s.__board){
-    s.__board.state.objects = s.objects; s.__board.render();
+    s.__board.state.objects=s.objects;
+    if(s.__board.setStableValid) s.__board.setStableValid(false);
+    s.__board.render();
   }
-  // Note: if this student's board is open in the annotate modal right now, we
-  // deliberately don't touch it live — the modal is the source of truth while
-  // open (so the teacher's own in-progress stroke can't be overwritten by an
-  // echo), and it re-syncs with the latest objects when closed.
+  /* Live modal update — student strokes appear under teacher's annotations */
+  const modalOpen=document.getElementById('annotateModal')?.classList.contains('show');
+  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
+    const teacherObjs=annotateBoard.state.objects.filter(o=>o.owner==='teacher');
+    annotateBoard.state.objects=[...reconstructImages(data.objects),...teacherObjs];
+    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
+    annotateBoard.render();
+  }
 });
 
 /* =========================================================
@@ -1318,7 +1325,7 @@ function refreshClassroomSelect(){
 }
 classroomSelect.addEventListener('change', ()=>{
   currentClassroomId = classroomSelect.value;
-  const active = document.querySelector('.screen.active').dataset.screen;
+  const active = (document.querySelector('.screen.active')||{dataset:{screen:''}}).dataset.screen;
   showScreen(active);
 });
 
