@@ -58,7 +58,7 @@ function saveState(){
       students:Array.from(students.values()).map(s=>({...s})),
       classrooms:Array.from(classrooms.values()).map(c=>({
         code:c.code,name:c.name,teacherId:c.teacherId,
-        students:Array.from(c.students.values()).map(s=>({...s,socketId:null,status:'offline'}))
+        students:Array.from(c.students.values()).map(s=>(Object.assign({},s,{socketId:null,status:'offline',livePathId:null,objects:JSON.parse(JSON.stringify(s.objects||[],(k,v)=>k==='_imgEl'?undefined:v))})))
       })),
       invitations:Array.from(invitations.values()).map(i=>({...i}))
     };
@@ -356,7 +356,7 @@ io.on('connection', (socket) => {
     io.to('teacher:' + code).emit('student:objects', { code, studentId: id, objects, canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight });
     // Debounced save: write to disk 5s after last sync (not on every sync — too frequent)
     clearTimeout(io._saveTimer);
-    io._saveTimer = setTimeout(saveState, 5000);
+    io._saveTimer = setTimeout(saveState, 2000); // save 2s after last write
   });
 
   socket.on('teacher:lock', ({ code, studentId, locked }) => {
@@ -395,10 +395,19 @@ io.on('connection', (socket) => {
   socket.on('stroke:live', (data)=>{
     const code=socket.data.code;
     if(!code||socket.data.role!=='student') return;
-    // Relay immediately — no storage needed, this is ephemeral display data
     io.to('teacher:'+code).emit('stroke:live',{
       ...data, studentId:socket.data.studentId, code
     });
+  });
+
+  /* ── teacher:stroke:live relay: student sees teacher annotating at ~60fps ── */
+  socket.on('teacher:stroke:live', (data)=>{
+    const { studentId, code, pathId, points, color, width, owner } = data;
+    const room = classrooms.get(code);
+    if(!room) return;
+    const student = room.students.get(studentId);
+    if(!student || !student.socketId) return;
+    io.to(student.socketId).emit('teacher:stroke:live', { pathId, points, color, width, owner:'teacher' });
   });
 
   /* ── Quick join: student opens share link, enters just their name ── */

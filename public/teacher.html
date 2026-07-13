@@ -207,6 +207,15 @@
   .modal-overlay{position:fixed; inset:0; background:rgba(47,43,61,0.4); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal{background:#fff; border-radius:20px; padding:22px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.2); max-height:90vh; overflow:auto;}
+  #monitorModal .modal{width:min(1100px,97vw); height:90vh; max-height:96vh; display:flex; flex-direction:column;}
+  #monitorModal .modal .modal-head,#monitorModal .modal .modal-toolbar{flex-shrink:0;}
+  #monitorModal .modal #monitorWrap{flex:1; min-height:300px; height:auto!important;}
+  #monitorModal .modal.fs{position:fixed;inset:0;border-radius:0;width:100vw!important;max-height:100vh;display:flex;flex-direction:column;z-index:999;padding:12px 14px;}
+  #monitorModal .modal.fs #monitorWrap{flex:1;height:auto!important;}
+  #monitorModal .modal.fs .modal-head,.modal.fs .modal-toolbar{flex-shrink:0;}
+  .expand-btn{border:none;background:var(--cloud);border-radius:8px;padding:5px 9px;font-size:15px;cursor:pointer;line-height:1;}
+  .expand-btn:hover{background:var(--line);}
+  .canvas-wrap.big{height:min(74vh,760px);}
   .modal.wide{width:560px;}
   .modal h3{margin:0 0 12px;}
   .modal label{font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;}
@@ -524,12 +533,16 @@
   <div class="modal wide">
     <div class="modal-head">
       <h3 id="monitorModalName">Student</h3>
-      <button class="iconbtn" id="monitorModalClose">✖</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="expand-btn" id="monitorExpand" title="Expand to full screen">⛶</button>
+        <button class="iconbtn" id="monitorModalClose">✖</button>
+      </div>
     </div>
     <div class="modal-toolbar" id="monitorModalToolbar">
       <button data-mtool="pen" class="active">✏️ Correct</button>
       <button data-mtool="highlight">🟨 Highlight</button>
       <button data-mtool="eraser">🧹 Erase</button>
+      <button id="monitorFracBtn" title="Insert fraction">½ Frac</button>
       <button id="monitorHintBtn">💡 Hint</button>
       <button id="monitorLockBtn">🔒 Lock</button>
     </div>
@@ -1041,6 +1054,7 @@ function createBoard(cfg){
 
   resize();
   const boardHandle = {
+    resize, // expose so callers can force a re-transform after viewScale changes
     state, render, undo, redo, setTool, setColor, setWidth, setLocked, destroy,
     insertChar, backspace, finishEdit, insertFraction, insertSticky,
     insertImageFromFile, clearMine, deleteSelected, ensureActiveText,
@@ -1236,7 +1250,7 @@ socket.on('connect_error', ()=>{ serverStatus.textContent='🔴 Couldn\u2019t re
 
 /* ── stroke:live — see student pen strokes at ~60fps without waiting for full sync ── */
 socket.on('stroke:live', data=>{
-  const c=classrooms.find(x=>x.connected&&(x.serverCode===data.code||x.inviteCode===data.code));
+  const c=findByCode(data.code);
   if(!c) return;
   const s=(c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
@@ -1256,28 +1270,28 @@ socket.on('stroke:live', data=>{
   /* Update open annotate modal (teacher sees live strokes while modal is open) */
   const annotateModalEl=document.getElementById('annotateModal');
   const modalOpen=annotateModalEl&&annotateModalEl.classList.contains('show');
-  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
-    let path=annotateBoard.state.objects.find(o=>o.id===data.pathId);
+  if(modalOpen&&monitorBoard&&monitorStudent&&monitorStudent.id===data.studentId){
+    let path=monitorBoard.state.objects.find(o=>o.id===data.pathId);
     if(!path){
-      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,owner:data.owner||'student'};
+      path={id:data.pathId,type:"path",points:[],color:data.color,width:data.width,owner:data.owner||"student"};
       if(data._alpha) path._alpha=data._alpha;
-      annotateBoard.state.objects.push(path);
+      monitorBoard.state.objects.push(path);
     }
     path.points=data.points;
-    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
-    annotateBoard.render();
+    if(monitorBoard.setStableValid) monitorBoard.setStableValid(false);
+    monitorBoard.render();
   }
 });
 
 socket.on('roster:update', (data)=>{
-  const c = classrooms.find(x=>x.connected && x.inviteCode===data.code);
+  const c = findByCode(data.code);
   if(!c) return;
   const prevById = {}; c.students.forEach(s=> prevById[s.id]=s);
   c.students = data.students.map(s=> Object.assign({accuracy:'—'}, prevById[s.id]||{}, s, {objects: reconstructImages(s.objects)}));
   if(currentClassroomId===c.id && (document.querySelector('.screen.active')||{dataset:{}}).dataset.screen==='monitor') renderMonitor();
 });
 socket.on('student:objects', (data)=>{
-  const c = classrooms.find(x=>x.connected&&(x.inviteCode===data.code||x.serverCode===data.code));
+  const c = findByCode(data.code);
   if(!c) return;
   const s = (c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
@@ -1319,7 +1333,12 @@ function showScreen(name){
 }
 
 const classroomSelect = document.getElementById('classroomSelect');
-window.classrooms = classrooms; // accessible for debugging and external scripts
+window.classrooms = classrooms; // accessible for debugging
+// Helper: return the server-issued code for any classroom, regardless of which
+// field name was used when the object was built.
+function classCode(c){ return c.serverCode || c.inviteCode || ''; }
+// Helper: find a classroom by a code string that might appear in either field.
+function findByCode(code){ return classrooms.find(c=>classCode(c)===code); }
 function refreshClassroomSelect(){
   classroomSelect.innerHTML = classrooms.map(c=> '<option value="'+c.id+'"'+(c.id===currentClassroomId?' selected':'')+'>'+c.name+'</option>').join('');
 }
@@ -1333,7 +1352,8 @@ classroomSelect.addEventListener('change', ()=>{
    Screen: Classrooms
    ========================================================= */
 function joinUrl(c){
-  return c.connected ? (location.origin + '/student.html?code=' + c.inviteCode) : ('slate.app/join/' + c.inviteCode);
+  const code = classCode(c);
+  return code ? (location.origin + '/student.html?code=' + code) : 'slate.app/join/—';
 }
 function renderClassrooms(){
   refreshClassroomSelect();
@@ -1378,7 +1398,7 @@ function renderClassrooms(){
   grid.querySelectorAll('[data-regen]').forEach(b=> b.addEventListener('click', ()=>{
     const c = classrooms.find(x=>x.id===b.dataset.regen);
     if(c.connected){
-      socket.emit('classroom:regenerateCode', {oldCode:c.inviteCode}, (res)=>{
+      socket.emit('classroom:regenerateCode', {oldCode:classCode(c)}, (res)=>{
         if(res && res.ok){ c.inviteCode = res.code; renderClassrooms(); }
       });
     } else {
@@ -1396,9 +1416,15 @@ document.getElementById('classroomCreate').addEventListener('click', ()=>{
   const name = document.getElementById('newClassroomName').value.trim();
   if(!name) return;
   socket.emit('classroom:create', {name, token: authToken}, (res)=>{
-    const c = {id:uid(), name, inviteCode: (res && res.ok) ? res.code : uid().toUpperCase().slice(0,4)+'-'+uid().toUpperCase().slice(0,4),
-      connected: !!(res && res.ok), students:[], assignments:[], analytics:null};
+    const code = (res && res.ok) ? res.code : null;
+    const c = {id:uid(), name,
+      serverCode: code,
+      inviteCode: code,   // keep both in sync so any lookup finds it
+      connected: true,
+      students:[], assignments:[], analytics:null};
     classrooms.push(c);
+    window.classrooms = classrooms;
+    if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
     document.getElementById('classroomModal').classList.remove('show');
     currentClassroomId = c.id;
     renderClassrooms();
@@ -1409,7 +1435,11 @@ document.getElementById('classroomCreate').addEventListener('click', ()=>{
    Screen: Live Monitor
    ========================================================= */
 let monitorBoard = null; // currently-open expand modal board
+window._getMonitorBoard=()=>monitorBoard;
 let monitorStudent = null;
+window._getMonitorStudent=()=>monitorStudent;
+// monitorBoard is declared below near renderMonitor
+
 
 function renderMonitor(){
   const c = currentClassroom();
@@ -1470,7 +1500,7 @@ function renderMonitor(){
     const s = c.students.find(x=>x.id===b.dataset.quicklock);
     s.locked = !s.locked;
     s.status = s.locked ? 'locked' : 'active';
-    if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:s.id, locked:s.locked});
+    socket.emit('teacher:lock', {code:classCode(c), studentId:s.id, locked:s.locked});
     renderMonitor();
   }));
 
@@ -1483,7 +1513,7 @@ document.getElementById('lockAllBtn').addEventListener('click', ()=>{
   const lockingAll = !c.students.every(s=>s.locked);
   c.students.forEach(s=>{
     s.locked = lockingAll; s.status = lockingAll ? 'locked' : (s.objects.length? 'active':'idle');
-    if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:s.id, locked:s.locked});
+    socket.emit('teacher:lock', {code:classCode(c), studentId:s.id, locked:s.locked});
   });
   document.getElementById('lockAllBtn').textContent = lockingAll ? '🔓 Unlock All' : '🔒 Lock All';
   renderMonitor();
@@ -1518,12 +1548,33 @@ function openMonitorModal(studentId){
   const annotateConfig = {tool:'pen', color:'#E5484D', width:3};
   const refW = s.canvasWidth || 1100, refH = s.canvasHeight || 650;
   const modalRect = wrap.getBoundingClientRect();
-  const viewScale = Math.min(modalRect.width/refW, modalRect.height/refH);
+  const vs0 = Math.min(modalRect.width/refW, modalRect.height/refH);
+  // Store opts as module-level so expand/collapse can update viewScale without recreating
+  window._monitorOpts = {
+    isAnnotating:()=>true, annotateConfig, viewScale:vs0, refW, refH,
+    onAnnotateStroke:()=>{
+      socket.emit('teacher:annotate', {code:classCode(c), studentId:s.id, objects: stripImgEl(mergedAnnotateObjects(s, monitorBoard))});
+    },
+    onStrokeLive:(()=>{
+      /* rAF-throttled live stroke relay — teacher strokes appear on student board
+         frame-by-frame, same as student→teacher direction */
+      let pending=null, rafId=null;
+      return (pathId, o)=>{
+        pending={pathId, points:o.points, color:o.color, width:o.width, owner:'teacher'};
+        if(!rafId) rafId=requestAnimationFrame(()=>{
+          if(pending && socket.connected && monitorStudent)
+            socket.emit('teacher:stroke:live',{
+              studentId:monitorStudent.id, code:classCode(currentClassroom()),
+              ...pending
+            });
+          pending=null; rafId=null;
+        });
+      };
+    })()
+  };
   monitorBoard = createBoard({
     canvas, wrap, cursorEl: document.getElementById('monitorCursor'), saveEl:null, role:'student',
-    opts:{isAnnotating:()=>true, annotateConfig, viewScale, onAnnotateStroke:()=>{
-      if(c.connected) socket.emit('teacher:annotate', {code:c.inviteCode, studentId:s.id, objects: stripImgEl(mergedAnnotateObjects(s, monitorBoard))});
-    }}
+    opts: window._monitorOpts
   });
   monitorBoard.state.objects = s.objects;
   monitorBoard.setLocked(s.locked);
@@ -1549,6 +1600,9 @@ function openMonitorModal(studentId){
     tBtn.classList.add('active');
   };
 }
+document.getElementById('monitorFracBtn').addEventListener('click', ()=>{
+  if(monitorBoard) window.openFractionModal(monitorBoard);
+});
 document.getElementById('monitorHintBtn').addEventListener('click', ()=> window.openHintModal());
 document.getElementById('monitorLockBtn').addEventListener('click', ()=>{
   if(!monitorStudent) return;
@@ -1558,16 +1612,36 @@ document.getElementById('monitorLockBtn').addEventListener('click', ()=>{
   document.getElementById('monitorLockBtn').textContent = monitorStudent.locked ? '🔓 Unlock' : '🔒 Lock';
   if(monitorBoard) monitorBoard.setLocked(monitorStudent.locked);
   const c = currentClassroom();
-  if(c.connected) socket.emit('teacher:lock', {code:c.inviteCode, studentId:monitorStudent.id, locked:monitorStudent.locked});
+  socket.emit('teacher:lock', {code:classCode(c), studentId:monitorStudent.id, locked:monitorStudent.locked});
+});
+document.getElementById('monitorExpand').addEventListener('click',()=>{
+  const modal=document.querySelector('#monitorModal .modal');
+  const isFs=modal.classList.toggle('fs');
+  document.getElementById('monitorExpand').textContent=isFs?'⊡':'⛶';
+  document.getElementById('monitorExpand').title=isFs?'Restore size':'Expand to full screen';
+  // Recompute viewScale after CSS transition so content fills the new size correctly
+  setTimeout(()=>{
+    if(!monitorBoard || !monitorStudent || !window._monitorOpts) return;
+    const wrap=document.getElementById('monitorWrap');
+    const r=wrap.getBoundingClientRect();
+    const {refW=1100, refH=650} = window._monitorOpts;
+    const newVs = Math.min(r.width/refW, r.height/refH);
+    window._monitorOpts.viewScale = newVs;
+    monitorBoard.resize(); // applies the new transform immediately
+  }, 60);
 });
 document.getElementById('monitorModalClose').addEventListener('click', ()=>{
+  // Also exit fullscreen when closing
+  const modal=document.querySelector('#monitorModal .modal');
+  modal.classList.remove('fs');
+  document.getElementById('monitorExpand').textContent='⛶';
   document.getElementById('monitorModal').classList.remove('show');
   if(monitorStudent && monitorBoard){
     const merged = mergedAnnotateObjects(monitorStudent, monitorBoard);
     monitorStudent.objects = merged;
     monitorStudent.status = monitorStudent.locked ? 'locked' : (merged.length ? 'active':'idle');
     const c = currentClassroom();
-    if(c.connected) socket.emit('teacher:annotate', {code:c.inviteCode, studentId:monitorStudent.id, objects: stripImgEl(merged)});
+    socket.emit('teacher:annotate', {code:classCode(c), studentId:monitorStudent.id, objects: stripImgEl(merged)});
   }
   renderMonitor();
 });
@@ -1587,7 +1661,7 @@ document.getElementById('hintSend').addEventListener('click', ()=>{
       monitorStudent.__board.insertSticky(msg, '#FFCB52');
     }
     const c = currentClassroom();
-    if(c.connected) socket.emit('teacher:hint', {code:c.inviteCode, studentId:monitorStudent.id, text:msg});
+    socket.emit('teacher:hint', {code:classCode(c), studentId:monitorStudent.id, text:msg});
   }
   hintModal.classList.remove('show');
 });
@@ -1942,6 +2016,11 @@ function showDashboard(name){
   document.getElementById('appShell').style.display='flex';
   document.getElementById('sidebarName').textContent=name;
   renderClassrooms();
+  // Re-join all classroom socket rooms (needed after page refresh)
+  classrooms.forEach(c=>{
+    const code=classCode(c);
+    if(code) socket.emit('classroom:teacherJoin',{code,token:authToken},()=>{});
+  });
 }
 function showLoginPage(msg, isSuccess){
   document.getElementById('appShell').style.display='none';

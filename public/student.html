@@ -1004,6 +1004,20 @@ socket.on('teacher:command', (cmd)=>{
   }
 });
 
+/* Teacher writing appears on student board frame-by-frame — mirrors student→teacher flow */
+socket.on('teacher:stroke:live', (data)=>{
+  if(!board) return;
+  let path = board.state.objects.find(o=>o.id===data.pathId);
+  if(!path){
+    path = {id:data.pathId, type:'path', points:[], color:data.color,
+            width:data.width, owner:'teacher'};
+    board.state.objects.push(path);
+  }
+  path.points = data.points;
+  if(board.setStableValid) board.setStableValid(false);
+  board.render();
+});
+
 /* ── Password eye toggle ── */
 document.querySelectorAll('.pw-eye').forEach(btn=>btn.addEventListener('click',()=>{
   const inp=document.getElementById(btn.dataset.eye);if(!inp)return;
@@ -1065,6 +1079,7 @@ function enterWorkspaceGuest(name,avatar,classroomName,savedObjects){
           pending=null;rafId=null;});};})()
     }});
   window.setFocusedBoard(board);
+  window.board = board; // expose so teacher:stroke:live and tests can access it
   if(savedObjects&&savedObjects.length){
     // Restore previous session work
     board.state.objects=savedObjects.map(o=>{
@@ -1227,6 +1242,7 @@ function enterWorkspace(name, avatar, classroomName){
       })()
     }});
   window.setFocusedBoard(board);
+  window.board = board; // expose so teacher:stroke:live handler can reach it
   board.state.objects = [
     newObj('sticky', {x: 24, y: 20, w: 220, h: 92, text: 'Welcome, '+name+'! ✍️ Your teacher can see your work and send hints as you go.', color:'#FFCB52', owner:'teacher', bornAt:0})
   ];
