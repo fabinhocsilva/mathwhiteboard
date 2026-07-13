@@ -1279,13 +1279,12 @@ socket.on('stroke:live', data=>{
     if(s.__board.setStableValid) s.__board.setStableValid(false);
     s.__board.render();
   }
-  /* Update open annotate modal (teacher sees live strokes while modal is open) */
-  const annotateModalEl=document.getElementById('annotateModal');
-  const modalOpen=annotateModalEl&&annotateModalEl.classList.contains('show');
+  /* Update open monitor modal */
+  const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
   if(modalOpen&&monitorBoard&&monitorStudent&&monitorStudent.id===data.studentId){
     let path=monitorBoard.state.objects.find(o=>o.id===data.pathId);
     if(!path){
-      path={id:data.pathId,type:"path",points:[],color:data.color,width:data.width,owner:data.owner||"student"};
+      path={id:data.pathId,type:'path',points:[],color:data.color,width:data.width,owner:data.owner||'student'};
       if(data._alpha) path._alpha=data._alpha;
       monitorBoard.state.objects.push(path);
     }
@@ -1320,12 +1319,12 @@ socket.on('student:objects', (data)=>{
     s.__board.render();
   }
   /* Live modal update — student strokes appear under teacher's annotations */
-  const modalOpen=document.getElementById('annotateModal')?.classList.contains('show');
-  if(modalOpen&&annotateBoard&&monitorStudent&&monitorStudent.id===data.studentId){
-    const teacherObjs=annotateBoard.state.objects.filter(o=>o.owner==='teacher');
-    annotateBoard.state.objects=[...reconstructImages(data.objects),...teacherObjs];
-    if(annotateBoard.setStableValid) annotateBoard.setStableValid(false);
-    annotateBoard.render();
+  const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
+  if(modalOpen&&monitorBoard&&monitorStudent&&monitorStudent.id===data.studentId){
+    const teacherObjs=monitorBoard.state.objects.filter(o=>o.owner==='teacher');
+    monitorBoard.state.objects=[...reconstructImages(data.objects),...teacherObjs];
+    if(monitorBoard.setStableValid) monitorBoard.setStableValid(false);
+    monitorBoard.render();
   }
 });
 
@@ -1456,6 +1455,7 @@ document.getElementById('classroomCreate').addEventListener('click', ()=>{
    ========================================================= */
 let monitorBoard = null; // currently-open expand modal board
 window._getMonitorBoard=()=>monitorBoard;
+Object.defineProperty(window,'monitorBoard',{get:()=>monitorBoard});
 let monitorStudent = null;
 window._getMonitorStudent=()=>monitorStudent;
 // monitorBoard is declared below near renderMonitor
