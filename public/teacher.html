@@ -2180,30 +2180,55 @@ document.getElementById('tSignOutBtn').addEventListener('click',()=>{
 });
 
 document.getElementById('tLoginBtn').addEventListener('click',doLogin);
+document.getElementById('tLoginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('tLoginEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 async function doLogin(){
   const email=document.getElementById('tLoginEmail').value.trim();
   const pw=document.getElementById('tLoginPw').value;
+  const errEl=document.getElementById('tLoginErr');
+  const btn=document.getElementById('tLoginBtn');
+  if(!email){errEl.textContent='Please enter your email.';return;}
+  if(!pw){errEl.textContent='Please enter your password.';return;}
+  errEl.textContent=''; btn.textContent='Signing in…'; btn.disabled=true;
   try{
     const res=await apiPost('/api/teacher/login',{email,password:pw});
-    if(!res.ok) return;
+    btn.textContent='Sign In'; btn.disabled=false;
+    if(!res.ok){errEl.textContent=res.error||'Incorrect email or password.';return;}
     authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
     showDashboard(res.name);
-  }catch(e){}
+  }catch(e){
+    btn.textContent='Sign In'; btn.disabled=false;
+    errEl.textContent='Could not reach the server. Check your connection.';
+  }
 }
 
 document.getElementById('tToRegister').addEventListener('click',()=>{document.getElementById('tLoginPage').classList.remove('show');document.getElementById('tRegisterPage').classList.add('show');});
 document.getElementById('tToLogin').addEventListener('click',()=>{document.getElementById('tRegisterPage').classList.remove('show');document.getElementById('tLoginPage').classList.add('show');});
-document.getElementById('tRegBtn').addEventListener('click',async()=>{
+document.getElementById('tRegBtn').addEventListener('click',doRegister);
+document.getElementById('tRegPw2').addEventListener('keydown',e=>{ if(e.key==='Enter') doRegister(); });
+async function doRegister(){
   const name=document.getElementById('tRegName').value.trim();
   const email=document.getElementById('tRegEmail').value.trim();
   const pw=document.getElementById('tRegPw').value;
+  const pw2=document.getElementById('tRegPw2').value;
+  const errEl=document.getElementById('tRegErr');
+  const btn=document.getElementById('tRegBtn');
+  if(!name){errEl.textContent='Please enter your name.';return;}
+  if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email address.';return;}
+  if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';return;}
+  if(pw!==pw2){errEl.textContent='Passwords do not match.';return;}
+  errEl.textContent=''; btn.textContent='Creating account…'; btn.disabled=true;
   try{
     const res=await apiPost('/api/teacher/register',{name,email,password:pw});
-    if(!res.ok) return;
+    btn.textContent='Create Account'; btn.disabled=false;
+    if(!res.ok){errEl.textContent=res.error||'Registration failed. Please try again.';return;}
     authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
     showDashboard(res.name);
-  }catch(e){}
-});
+  }catch(e){
+    btn.textContent='Create Account'; btn.disabled=false;
+    errEl.textContent='Could not reach the server. Check your connection.';
+  }
+}
 
 /* ── Students section ── */
 async function renderStudents(){
