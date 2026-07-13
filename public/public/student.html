@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Slate — Join Classroom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cloud:#FBF8F2; --paper:#FFFEFB; --grid-dot:#E7E0CF;
+    --ink:#2F2B3D; --ink-soft:#6B6680;
+    --coral:#FF8A5C; --coral-dark:#E76B3C; --coral-bg:#FFF1E8;
+    --teal:#3FB3A4; --teal-dark:#2C8E82; --teal-bg:#EAF7F4;
+    --sunny:#FFCB52; --lavender:#9A8FC9; --red:#E5484D;
+    --line:#ECE5D6; --radius:18px; --radius-sm:11px;
+    --shadow:0 3px 14px rgba(70,50,20,0.08);
+    --font-display:'Fredoka',sans-serif; --font-body:'Nunito',sans-serif; --font-math:'Patrick Hand',cursive;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:var(--cloud); font-family:var(--font-body); color:var(--ink);}
+  button{font-family:var(--font-body); cursor:pointer;}
+  button:focus-visible, input:focus-visible{outline:3px solid var(--lavender); outline-offset:2px;}
+  h1,h2,h3{font-family:var(--font-display); margin:0;}
+
+  .screen{display:none; min-height:100vh;}
+  .screen.active{display:flex;}
+
+  /* ---------- join screen ---------- */
+  #joinScreen{align-items:center; justify-content:center; padding:24px;}
+  .join-card{
+    background:#fff; border-radius:28px; box-shadow:var(--shadow); padding:34px 30px;
+    max-width:380px; width:100%; text-align:center;
+    animation: pop .25s ease;
+  }
+  @media (prefers-reduced-motion: reduce){ .join-card{animation:none;} }
+  @keyframes pop{ from{opacity:0; transform:scale(.96);} to{opacity:1; transform:scale(1);} }
+  .join-emoji{font-size:42px; margin-bottom:6px;}
+  .join-card h1{font-size:20px; margin-bottom:4px;}
+  .join-class-name{color:var(--coral-dark); font-weight:700;}
+  .join-card p.sub{color:var(--ink-soft); font-size:13px; margin:6px 0 20px;}
+
+  .avatar-grid{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:18px;}
+  .avatar-pick{
+    width:42px; height:42px; border-radius:50%; border:2.5px solid transparent; background:var(--cloud);
+    font-size:20px; display:flex; align-items:center; justify-content:center;
+  }
+  .avatar-pick.selected{border-color:var(--coral-dark); background:var(--coral-bg);}
+
+  .join-card input[type=text]{
+    width:100%; padding:11px 14px; border-radius:12px; border:1.5px solid var(--line);
+    font-family:var(--font-body); font-size:15px; font-weight:700; text-align:center; margin-bottom:6px;
+  }
+  .field-error{color:var(--red); font-size:12px; font-weight:700; height:16px; margin-bottom:8px;}
+  .join-btn{
+    width:100%; border:none; border-radius:999px; padding:13px; font-family:var(--font-display);
+    font-weight:700; font-size:15px; background:var(--coral-dark); color:#fff; margin-top:6px;
+  }
+  .join-btn:disabled{background:#E8E1D3; color:#A39C8C; cursor:not-allowed;}
+  .switch-code-link{display:inline-block; margin-top:16px; font-size:12px; color:var(--ink-soft); border:none; background:none; text-decoration:underline;}
+  .switch-code-row{display:none; gap:6px; margin-top:10px;}
+  .switch-code-row.show{display:flex;}
+  .switch-code-row input{flex:1; padding:8px 10px; border-radius:10px; border:1.5px solid var(--line); font-size:13px;}
+  .switch-code-row button{border:none; border-radius:10px; padding:8px 12px; background:var(--lavender); color:#fff; font-weight:700; font-size:12px;}
+  .joining-spinner{display:none; align-items:center; justify-content:center; gap:8px; font-weight:700; color:var(--ink-soft); font-size:13px; margin-top:10px;}
+  .joining-spinner.show{display:flex;}
+  .dot-spin{width:8px; height:8px; border-radius:50%; background:var(--coral-dark); animation:bounce 1s infinite ease-in-out;}
+  .dot-spin:nth-child(2){animation-delay:.15s;} .dot-spin:nth-child(3){animation-delay:.3s;}
+  @keyframes bounce{ 0%,80%,100%{transform:scale(0.6); opacity:.5;} 40%{transform:scale(1); opacity:1;} }
+  @media (prefers-reduced-motion: reduce){ .dot-spin{animation:none;} }
+
+  /* ---------- workspace screen ---------- */
+  #workspaceScreen{flex-direction:column;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    padding:12px 20px; background:#fff; border-bottom:1px solid var(--line);
+  }
+  .topbar-left{display:flex; align-items:center; gap:10px;}
+  .leave-btn{border:none; background:var(--cloud); border-radius:999px; padding:8px 14px; font-weight:700; font-size:13px;}
+  .class-name-tag{font-family:var(--font-display); font-weight:600; font-size:15px;}
+  .topbar-right{display:flex; align-items:center; gap:10px;}
+  .me-pill{display:flex; align-items:center; gap:6px; background:var(--teal-bg); padding:5px 12px 5px 5px; border-radius:999px; font-weight:700; font-size:13px; color:var(--teal-dark);}
+  .me-pill .av{width:26px; height:26px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:14px;}
+  .conn-dot{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--teal-dark);}
+  .conn-dot::before{content:''; width:8px; height:8px; border-radius:50%; background:var(--teal); display:inline-block;}
+  .conn-dot.offline{color:var(--red);}
+  .conn-dot.offline::before{background:var(--red);}
+  .lock-banner{position:absolute; top:10px; left:10px; right:10px; display:none; background:rgba(229,72,77,0.94); color:#fff;
+    font-weight:700; font-size:13px; padding:8px 12px; border-radius:999px; text-align:center; z-index:5; font-family:var(--font-display);}
+  .lock-banner.show{display:block;}
+
+  .workspace-body{flex:1; padding:16px 20px; display:flex; flex-direction:column; gap:10px;}
+  .toolbar{display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px; background:var(--cloud); border-radius:var(--radius-sm);}
+  .toolbar .sep{width:1px; height:22px; background:var(--line); margin:0 2px;}
+  .tbtn{border:none; background:#fff; border-radius:10px; padding:7px 10px; font-size:15px; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+  .tbtn.active{background:var(--lavender); color:#fff;}
+  .tbtn.danger{color:var(--red);}
+  .swatch{width:24px; height:24px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--line); padding:0;}
+  .swatch.active{box-shadow:0 0 0 2px var(--ink);}
+  .wbtn{border:none; background:#fff; border-radius:10px; padding:6px 9px; font-weight:700; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+  .wbtn.active{background:var(--ink); color:#fff;}
+
+  .canvas-wrap{position:relative; flex:1; min-height:380px; border-radius:var(--radius); overflow:hidden; background-color:var(--paper);
+    background-image:radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.3px); background-size:22px 22px;
+    border:1px solid var(--line); touch-action:none;}
+  canvas{display:block; width:100%; height:100%;}
+  .cursor-label{position:absolute; top:0; left:0; pointer-events:none; opacity:0; transition:opacity .25s ease;
+    font-size:11px; font-weight:700; background:rgba(47,43,61,0.85); color:#fff; padding:3px 8px; border-radius:999px;
+    transform:translate(-100px,-100px); white-space:nowrap;}
+
+  .pillbtn{border:none; border-radius:999px; padding:9px 15px; font-family:var(--font-display); font-weight:600; font-size:13px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.07);}
+  .pillbtn.armed{background:var(--coral-dark); color:#fff; box-shadow:0 0 0 2px var(--coral);}
+
+  .layout-toggle{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .layout-toggle button{border:none; border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.07); color:var(--ink-soft);}
+  .layout-toggle button.active{background:var(--lavender); color:#fff;}
+
+  .math-bar{background:var(--cloud); border-radius:var(--radius-sm); padding:10px 12px; display:flex; flex-direction:column; gap:10px;}
+  .math-bar-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .math-bar-label{font-size:11px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;}
+  .math-bar select{
+    border:1.5px solid var(--line); background:#fff; border-radius:10px; padding:7px 10px;
+    font-family:var(--font-body); font-weight:700; font-size:13px; color:var(--ink);
+  }
+  .kbd-grid{display:flex; flex-wrap:wrap; gap:6px;}
+  .key{border:none; background:#fff; border-radius:9px; min-width:34px; height:34px; padding:0 8px; font-size:16px; font-family:var(--font-math); box-shadow:0 1px 3px rgba(0,0,0,0.07);}
+  .key:hover{background:var(--lavender); color:#fff;}
+  .key.armed{background:var(--coral-dark); color:#fff; box-shadow:0 0 0 2px var(--coral);}
+  .kbd-subhead{font-size:11px; font-weight:800; color:var(--ink-soft); margin:0 4px 0 2px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;}
+  .math-bar-actions{display:flex; gap:6px; margin-left:auto;}
+
+  .workspace-columns{display:flex; gap:12px; align-items:stretch; flex:1; min-height:0;}
+  .side-bar{width:172px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; overflow-y:auto;}
+  .side-bar.empty{display:none;}
+  .canvas-column{flex:1; display:flex; flex-direction:column; gap:10px; min-width:0;}
+  .category-bar{background:var(--cloud); border-radius:var(--radius-sm); padding:8px 10px; display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; gap:8px;}
+  .side-bar .category-bar{flex-direction:column; align-items:flex-start; gap:6px;}
+  .above-bars{display:flex; flex-direction:column; gap:8px;}
+  .above-bars.empty{display:none;}
+  .placement-hint{font-size:12px; color:var(--ink-soft); font-weight:700; padding:0 2px;}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(47,43,61,0.35); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff; border-radius:20px; padding:22px; width:300px; box-shadow:0 10px 30px rgba(0,0,0,0.2);}
+  .modal h3{margin:0 0 12px;}
+  .modal label{font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:4px;}
+  .modal input{width:100%; padding:8px 10px; border-radius:10px; border:1.5px solid var(--line); font-family:var(--font-body); font-size:15px; margin-bottom:12px;}
+  .modal-actions{display:flex; gap:8px; justify-content:flex-end;}
+  .modal-actions button{border:none; border-radius:999px; padding:8px 16px; font-weight:700;}
+  .modal-actions .cancel{background:var(--cloud);}
+  .modal-actions .confirm{background:var(--lavender); color:#fff;}
+
+  /* ── AUTH ── */
+  .auth-screen{min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--cloud); padding:24px;}
+  .auth-card{background:#fff; border-radius:26px; box-shadow:var(--shadow); padding:32px 26px; width:100%; max-width:340px; text-align:center;}
+  .auth-logo{font-size:38px; margin-bottom:6px;}
+  .auth-card h1{font-size:18px; margin-bottom:3px;}
+  .auth-class-name{color:var(--teal-dark); font-weight:700;}
+  .auth-card p.sub{color:var(--ink-soft); font-size:12.5px; margin:5px 0 18px;}
+  .auth-card label{font-size:11px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; display:block; margin-bottom:4px; margin-top:12px; text-align:left;}
+  .auth-card label:first-of-type{margin-top:0;}
+  .auth-card input{width:100%; padding:10px 12px; border-radius:11px; border:1.5px solid var(--line); font-family:var(--font-body); font-size:14px; text-align:left;}
+  .pw-wrap{position:relative;}
+  .pw-wrap input{padding-right:40px;}
+  .pw-eye{position:absolute; right:11px; top:50%; transform:translateY(-50%); border:none; background:none; font-size:14px; color:var(--ink-soft); cursor:pointer; padding:4px;}
+  .auth-error{color:var(--red); font-size:12px; font-weight:700; min-height:18px; margin-top:7px; text-align:left;}
+  .login-btn{width:100%; border:none; border-radius:999px; padding:12px; font-family:var(--font-display); font-weight:700; font-size:14px; background:var(--teal-dark); color:#fff; margin-top:14px; cursor:pointer;}
+  .login-btn:disabled{background:#C5DDD9; cursor:not-allowed;}
+  .auth-hint{font-size:11.5px; color:var(--ink-soft); margin-top:14px; background:var(--cloud); padding:8px 12px; border-radius:12px;}
+
+  /* ── Dark mode ── */
+  [data-theme="dark"]{
+    --cloud:#1B1916; --paper:#201E1A; --grid-dot:#2C2924;
+    --ink:#E5E1D8; --ink-soft:#9A9085;
+    --coral-bg:#261510; --teal-bg:#0E1E1B;
+    --line:#302C26; --shadow:0 3px 14px rgba(0,0,0,.45);
+  }
+  [data-theme="dark"] body{background:var(--cloud);}
+  [data-theme="dark"] .auth-screen{background:var(--cloud);}
+  [data-theme="dark"] .auth-card,[data-theme="dark"] #floatKbd{background:#28251F!important; color:var(--ink)!important;}
+  [data-theme="dark"] .auth-card input{background:#201E1A!important; color:var(--ink)!important; border-color:var(--line)!important;}
+  [data-theme="dark"] .ws-topbar{background:#201E1A!important; border-color:var(--line);}
+  [data-theme="dark"] .toolbar{background:#28251F!important;}
+  [data-theme="dark"] .tbtn,[data-theme="dark"] .swatch,[data-theme="dark"] .wbtn{background:#201E1A!important; color:var(--ink)!important;}
+  [data-theme="dark"] .tbtn.active{background:var(--lavender)!important; color:#fff!important;}
+  [data-theme="dark"] .fkey,[data-theme="dark"] .cat-toggle{background:#201E1A!important; color:var(--ink)!important;}
+  [data-theme="dark"] .cat-toggle.active{background:var(--lavender)!important; color:#fff!important;}
+  [data-theme="dark"] .lock-banner{background:rgba(229,72,77,.94);}
+  [data-theme="dark"] select{background:#201E1A!important; color:var(--ink)!important;}
+
+  /* ── Theme + settings buttons ── */
+  .theme-btn{border:none;background:transparent;font-size:16px;cursor:pointer;padding:4px 7px;border-radius:8px;}
+  .theme-btn:hover{background:var(--teal-bg);}
+  .settings-btn{border:none;background:transparent;font-size:16px;cursor:pointer;padding:4px 7px;border-radius:8px;}
+  .settings-btn:hover{background:var(--teal-bg);}
+
+  /* ── Permissions modal ── */
+  .perm-section h4{font-family:var(--font-display);font-size:14px;margin-bottom:10px;}
+  .perm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .perm-row:last-child{border-bottom:none;}
+  .perm-label{font-size:13px;font-weight:700;}
+  .perm-desc{font-size:11px;color:var(--ink-soft);}
+  .toggle-switch{position:relative;width:40px;height:22px;flex-shrink:0;}
+  .toggle-switch input{opacity:0;width:0;height:0;}
+  .toggle-slider{position:absolute;inset:0;background:var(--line);border-radius:999px;cursor:pointer;transition:.2s;}
+  .toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+  .toggle-switch input:checked + .toggle-slider{background:var(--teal-dark);}
+  .toggle-switch input:checked + .toggle-slider:before{transform:translateX(18px);}
+
+  /* ── workspace fills all remaining height ── */
+  .workspace-body{flex:1; padding:10px 14px; display:flex; flex-direction:column; gap:8px; overflow:hidden;}
+  .canvas-wrap{position:relative; border-radius:var(--radius-sm); overflow:hidden; background-color:var(--paper);
+    background-image:radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.3px); background-size:22px 22px;
+    border:1px solid var(--line); touch-action:none;}
+  canvas{display:block; width:100%; height:100%;}
+
+  /* ── floating keyboard ── */
+  .fkbd-row{display:flex; flex-wrap:wrap; gap:5px;}
+  .fkey{border:none; background:var(--cloud); border-radius:9px; min-width:34px; height:36px; padding:0 9px;
+    font-size:17px; font-family:var(--font-math); box-shadow:0 1px 3px rgba(0,0,0,.07); cursor:pointer;}
+  .fkey:hover{background:var(--lavender); color:#fff;}
+  .fkey.armed{background:var(--coral-dark); color:#fff; box-shadow:0 0 0 2px var(--coral);}
+  .cat-toggle{border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:4px 10px;
+    font-size:12px; font-weight:700; color:var(--ink-soft); cursor:pointer; font-family:var(--font-math);}
+  .cat-toggle.active{background:var(--lavender); border-color:var(--lavender); color:#fff;}
+  .fkbd-label{font-size:10px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="auth-screen" id="loginScreen">
+  <div class="auth-card">
+    <div class="auth-logo">📚</div>
+    <h1 id="loginTitle">Student Sign In</h1>
+    <p class="sub" id="loginSubtitle">Enter the username and password your teacher gave you</p>
+    <!-- Quick join — shown when ?code= is in the URL (teacher shared link) -->
+    <div id="quickJoinSection" style="display:none;">
+      <div style="background:var(--teal-bg);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:10px;font-weight:800;color:var(--teal-dark);text-transform:uppercase;letter-spacing:.04em;">Joining</div>
+        <div style="font-weight:800;font-size:15px;color:var(--teal-dark);" id="quickJoinRoomName">Whiteboard</div>
+      </div>
+      <label>Your name</label>
+      <input type="text" id="quickJoinName" placeholder="e.g. Alex" autocomplete="name">
+      <div class="auth-error" id="quickJoinError"></div>
+      <button class="login-btn" id="quickJoinBtn" style="background:var(--teal-dark);">Join Whiteboard →</button>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0;">
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+        <span style="font-size:11px;color:var(--ink-soft);font-weight:700;">have an account?</span>
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+      </div>
+    </div>
+    <label>Username</label>
+    <input type="text" id="sUsername" placeholder="e.g. alex_m" autocomplete="username">
+    <label>Password</label>
+    <div class="pw-wrap">
+      <input type="password" id="sPassword" placeholder="••••••••" autocomplete="current-password">
+      <button class="pw-eye" data-eye="sPassword">👁</button>
+    </div>
+    <div class="auth-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn">Sign In</button>
+    <div class="auth-hint">Forgot your login? Ask your teacher to reset it.</div>
+  </div>
+</div>
+
+
+<!-- INVITATION SCREEN -->
+<div id="inviteScreen" style="display:none;flex:1;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:16px;background:var(--cloud);">
+  <div style="max-width:400px;width:100%;">
+    <h2 style="font-family:var(--font-display);text-align:center;margin-bottom:6px;">📬 Invitations</h2>
+    <p style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px;">Your teacher has invited you to a classroom.<br>Review the permissions and decide whether to accept.</p>
+    <div id="inviteList"></div>
+    <div id="noInviteMsg" style="display:none;text-align:center;padding:30px 16px;background:#fff;border-radius:18px;box-shadow:var(--shadow);">
+      <div style="font-size:34px;margin-bottom:10px;">🕐</div>
+      <div style="font-weight:700;margin-bottom:6px;">No invitations yet</div>
+      <div style="font-size:13px;color:var(--ink-soft);">Ask your teacher to send you an invitation to a classroom.</div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSPACE SCREEN -->
+<section class="screen" id="workspaceScreen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="leave-btn" id="leaveBtn">← Sign out</button>
+      <span class="class-name-tag" id="wsClassName"></span>
+    </div>
+    <div class="topbar-right">
+      <span class="conn-dot" id="connDot">Connecting…</span>
+      <button class="settings-btn" id="permSettingsBtn" title="Privacy & Permissions">⚙️</button>
+      <button class="theme-btn" id="themeToggle" title="Toggle dark/light mode">🌙</button>
+      <span class="me-pill"><span class="av" id="wsAvatar"></span><span id="wsName"></span></span>
+    </div>
+  </div>
+
+  <div class="workspace-body">
+    <div class="toolbar" id="toolbar">
+      <button class="tbtn active" data-tool="pen" title="Pen">✏️</button>
+      <button class="tbtn" data-tool="select" title="Select / Move">👆</button>
+      <button class="tbtn" data-tool="eraser" title="Eraser">🧹</button>
+      <button class="tbtn" data-tool="shape-rect" title="Rectangle">▭</button>
+      <button class="tbtn" data-tool="shape-line" title="Line">／</button>
+      <div class="sep"></div>
+      <button class="swatch active" data-color="#2C8E82" style="background:#2C8E82"></button>
+      <button class="swatch" data-color="#2F2B3D" style="background:#2F2B3D"></button>
+      <button class="swatch" data-color="#3F7FE0" style="background:#3F7FE0"></button>
+      <button class="swatch" data-color="#C75FC9" style="background:#C75FC9"></button>
+      <div class="sep"></div>
+      <button class="wbtn" data-width="3">S</button>
+      <button class="wbtn active" data-width="5">M</button>
+      <button class="wbtn" data-width="9">L</button>
+      <div class="sep"></div>
+      <button class="tbtn" id="imageBtn" title="Insert image">🖼️</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none">
+      <button class="tbtn" id="undoBtn" title="Undo">↩️</button>
+      <button class="tbtn" id="redoBtn" title="Redo">↪️</button>
+      <button class="tbtn danger" id="clearBtn" title="Clear my work">🗑️</button>
+      <div class="sep"></div>
+      <button class="tbtn" id="pdfUploadBtn" title="Upload PDF">📄 PDF</button>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none">
+      <button class="tbtn" id="kbdToggleBtn" title="Math keyboard">🔢 Math Keys</button>
+    </div>
+
+    <div class="canvas-wrap" id="boardWrap" style="flex:1;min-height:0;">
+      <canvas id="boardCanvas"></canvas>
+      <div class="cursor-label" id="boardCursor"></div>
+      <div class="lock-banner" id="lockBanner">🔒 Board locked by teacher</div>
+    </div>
+  </div>
+</section>
+
+<!-- Floating Math Keyboard -->
+<div id="floatKbd" style="display:none;position:fixed;z-index:90;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
+  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
+    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
+    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
+  </div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+    <!-- category toggles -->
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
+      <button class="cat-toggle active" data-cat="ops">+ − × ÷</button>
+      <button class="cat-toggle" data-cat="alg">x y z</button>
+      <button class="cat-toggle" data-cat="sym">π √ °</button>
+      <button class="cat-toggle" data-cat="exp">x² xⁿ</button>
+      <button class="cat-toggle" data-cat="frac">½</button>
+      <button class="cat-toggle" data-cat="geo">∠ Σ ∫</button>
+    </div>
+    <!-- key area — rebuilt when categories change -->
+    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">
+      Tap a key to arm it · tap the board to place it exactly
+    </div>
+  </div>
+</div>
+
+<!-- Permissions modal -->
+<div class="modal-overlay" id="permModal" style="z-index:60;">
+  <div class="modal" style="max-width:400px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="margin:0;">⚙️ Privacy & Permissions</h3>
+      <button class="iconbtn" id="permClose">✖</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">Choose what your teacher can do on your account. You can change these any time.</p>
+    <div class="perm-section">
+      <div class="perm-row">
+        <div><div class="perm-label">👁 See my work</div><div class="perm-desc">Teacher can view your whiteboard in real time</div></div>
+        <label class="toggle-switch"><input type="checkbox" checked disabled><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">✏️ Draw on my board</div><div class="perm-desc">Teacher can annotate and correct your work</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permAnnotate" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">🔒 Lock my board</div><div class="perm-desc">Teacher can pause your board when needed</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permLock" checked><span class="toggle-slider"></span></label>
+      </div>
+      <div class="perm-row">
+        <div><div class="perm-label">👤 Edit my profile</div><div class="perm-desc">Teacher can change your display name and avatar</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="permEditProfile" checked><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="cancel" id="permCancel">Cancel</button>
+      <button class="confirm" id="permSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fraction modal -->
+<div class="modal-overlay" id="fractionModal">
+  <div class="modal">
+    <h3>Build a fraction</h3>
+    <label>Numerator</label>
+    <input type="text" id="fracNum" placeholder="e.g. 3x">
+    <label>Denominator</label>
+    <input type="text" id="fracDen" placeholder="e.g. 4">
+    <div class="modal-actions">
+      <button class="cancel" id="fracCancel">Cancel</button>
+      <button class="confirm" id="fracInsert">Insert</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* =========================================================
+   Shared whiteboard engine (same model used by the other
+   Slate prototypes, so the experience stays consistent)
+   ========================================================= */
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const uid = () => Math.random().toString(36).slice(2,9);
+const now = () => Date.now();
+const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1,y2-y1);
+const timeStr = () => new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+const FONT_MATH = "'Patrick Hand', cursive";
+
+function newObj(type, props){ return Object.assign({id: uid(), type, owner:'student', bornAt: now()}, props); }
+function layoutRuns(text){
+  const runs = []; let i=0;
+  while(i < text.length){
+    const ch = text[i];
+    if(ch === '^' || ch === '_'){
+      const dir = ch === '^' ? 1 : -1; i++;
+      let j=i; while(j<text.length && /[A-Za-z0-9]/.test(text[j])) j++;
+      const span = text.slice(i,j); if(span) runs.push({str:span, raised:dir}); i=j;
+    } else {
+      let j=i; while(j<text.length && text[j]!=='^' && text[j]!=='_') j++;
+      runs.push({str:text.slice(i,j), raised:0}); i=j;
+    }
+  }
+  return runs;
+}
+function measureMath(ctx, text, fontSize){
+  const runs = layoutRuns(text || ''); let x=0; const placed=[];
+  for(const r of runs){
+    const fs = r.raised ? fontSize*0.62 : fontSize;
+    ctx.font = fs+'px '+FONT_MATH;
+    const w = ctx.measureText(r.str).width;
+    const dy = r.raised>0 ? -fontSize*0.32 : (r.raised<0 ? fontSize*0.2 : 0);
+    placed.push({str:r.str, x, dy, fs}); x += w;
+  }
+  return {placed, width:Math.max(x, fontSize*0.3), ascent:fontSize*0.85, descent:fontSize*0.3};
+}
+function drawMathText(ctx, text, x, y, fontSize, color){
+  ctx.fillStyle = color; ctx.textBaseline='alphabetic';
+  const {placed} = measureMath(ctx, text, fontSize);
+  for(const p of placed){ ctx.font = p.fs+'px '+FONT_MATH; ctx.fillText(p.str, x+p.x, y+p.dy); }
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function wrapText(ctx,text,x,y,maxW,lineH){
+  const words=(text||'').split(' '); let line='', yy=y;
+  for(const w of words){
+    const test=line+w+' ';
+    if(ctx.measureText(test).width>maxW && line){ ctx.fillText(line,x,yy); line=w+' '; yy+=lineH; }
+    else line=test;
+  }
+  ctx.fillText(line,x,yy);
+}
+
+function createBoard(cfg){
+  const {canvas, wrap, cursorEl, saveEl, role} = cfg;
+  const opts = cfg.opts || {isAnnotating:()=>false, annotateConfig:null};
+  const ctx = canvas.getContext('2d');
+  const state = {
+    objects:[], history:[], future:[], locked:false, tool:'pen',
+    color: role==='teacher' ? '#E76B3C' : '#2C8E82', width:5,
+    selectedId:null, armed:null, _hoverPos:null, _dragCandidate:null, _dragging:false,
+    _resizing:null, _activePathId:null, _activeShapeId:null, _erasing:false,
+    _saveTimer:null, _cursorTimer:null
+  };
+  function dpr(){ return Math.max(1, window.devicePixelRatio||1); }
+  function resize(){
+    const r = wrap.getBoundingClientRect(); const d = dpr(); const sc = opts.viewScale||1;
+    canvas.width = Math.round(r.width*d); canvas.height = Math.round(r.height*d);
+    canvas.style.width = r.width+'px'; canvas.style.height = r.height+'px';
+    ctx.setTransform(d*sc,0,0,d*sc,0,0);
+    stableLayer.width = canvas.width; stableLayer.height = canvas.height;
+    stableValid = false; render();
+  }
+  // Offscreen stable layer — caches all completed objects so render() during
+  // active drawing only needs to composite the bg + the current stroke.
+  const stableLayer = document.createElement('canvas');
+  let stableValid = false;
+
+  const ro = new ResizeObserver(resize); ro.observe(wrap);
+
+  function snapshot(){ return JSON.stringify(state.objects, (k,v)=> k==='_imgEl' ? undefined : v); }
+  function restore(json){
+    const objs = JSON.parse(json);
+    objs.forEach(o=>{ if(o.type==='image'){ const im=new Image(); im.onload=render; im.src=o.src; o._imgEl=im; } });
+    state.objects = objs;
+  }
+  function pushHistory(){ state.history.push(snapshot()); if(state.history.length>50) state.history.shift(); state.future=[]; }
+  function undo(){ if(!state.history.length) return; state.future.push(snapshot()); restore(state.history.pop()); state.selectedId=null; commit(); }
+  function redo(){ if(!state.future.length) return; state.history.push(snapshot()); restore(state.future.pop()); commit(); }
+  function commit(){ stableValid=false; render(); scheduleSave(); if(opts.onSync) opts.onSync(state.objects); }
+  // No more 150ms polling — stroke:live events replace it for active drawing.
+  function scheduleSave(){
+    if(!saveEl) return;
+    clearTimeout(state._saveTimer); saveEl.textContent='Saving…';
+    state._saveTimer = setTimeout(()=>{ saveEl.textContent='Saved ✓ '+timeStr(); }, 650);
+  }
+  function getObj(id){ return state.objects.find(o=>o.id===id); }
+  function bbox(o){
+    if(o.type==='path'){
+      if(o.points.length===1){ const p=o.points[0]; return {x:p.x-o.width,y:p.y-o.width,w:o.width*2,h:o.width*2}; }
+      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+      o.points.forEach(p=>{ minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); });
+      const pad=o.width; return {x:minX-pad,y:minY-pad,w:(maxX-minX)+pad*2,h:(maxY-minY)+pad*2};
+    }
+    if(o.type==='shape'){ const x=Math.min(o.x1,o.x2),y=Math.min(o.y1,o.y2); return {x,y,w:Math.abs(o.x2-o.x1),h:Math.abs(o.y2-o.y1)}; }
+    if(o.type==='image'){ return {x:o.x,y:o.y,w:o.w,h:o.h}; }
+    if(o.type==='text'){ const m=measureMath(ctx,o.text,o.fontSize); return {x:o.x,y:o.y-m.ascent,w:m.width,h:m.ascent+m.descent}; }
+    if(o.type==='fraction'){
+      const fs=o.fontSize*0.85; const mn=measureMath(ctx,o.num,fs), md=measureMath(ctx,o.den,fs);
+      const w=Math.max(mn.width,md.width)+14; return {x:o.x,y:o.y,w,h:o.fontSize*2.1};
+    }
+    if(o.type==='sticky'){ return {x:o.x,y:o.y,w:o.w,h:o.h}; }
+    return {x:0,y:0,w:0,h:0};
+  }
+  function hitTest(x,y){
+    for(let i=state.objects.length-1;i>=0;i--){ const o=state.objects[i]; const b=bbox(o);
+      if(x>=b.x-4 && x<=b.x+b.w+4 && y>=b.y-4 && y<=b.y+b.h+4) return o; }
+    return null;
+  }
+  function renderActive(){
+    // FAST PATH: composite cached background + live stroke only (sub-millisecond)
+    ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(stableLayer,0,0); // pixel-perfect copy of all completed objects
+    ctx.restore();
+    const ao = getObj(state._activePathId);
+    if(ao){ ctx.save(); if(ao._alpha) ctx.globalAlpha=ao._alpha; drawObject(ao); ctx.restore(); }
+    if(state.armed&&state._hoverPos) drawArmedPreview();
+  }
+  function renderFull(){
+    // FULL RENDER — used when stable cache is invalid (object added/removed/changed)
+    const r = wrap.getBoundingClientRect();
+    ctx.clearRect(0,0,r.width,r.height);
+    let naf=false;
+    for(const o of state.objects){
+      if(state._activePathId && o.id===state._activePathId) continue; // draw after caching
+      ctx.save();
+      let sc=1;
+      if(!REDUCED_MOTION&&o.bornAt&&now()-o.bornAt<180){sc=0.6+0.4*((now()-o.bornAt)/180);naf=true;}
+      if(sc!==1){const b=bbox(o);const cx=b.x+b.w/2,cy=b.y+b.h/2;ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.translate(-cx,-cy);}
+      const pa=ctx.globalAlpha; if(o._alpha) ctx.globalAlpha=o._alpha;
+      drawObject(o); ctx.globalAlpha=pa; ctx.restore();
+    }
+    if(state._activePathId){
+      // Snapshot current canvas to stable layer (everything except the active stroke)
+      const sc2=stableLayer.getContext('2d');
+      sc2.clearRect(0,0,stableLayer.width,stableLayer.height);
+      // Copy the canvas in pixel space — works regardless of ctx transform / viewScale
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+      sc2.drawImage(canvas,0,0);
+      ctx.restore();
+      stableValid=true;
+      // Now draw active stroke on top
+      const ao=getObj(state._activePathId);
+      if(ao){ctx.save();if(ao._alpha)ctx.globalAlpha=ao._alpha;drawObject(ao);ctx.restore();}
+    }
+    if(state.selectedId){const o=getObj(state.selectedId);if(o)drawSelection(o);}
+    if(state.armed&&state._hoverPos) drawArmedPreview();
+    if(naf) requestAnimationFrame(render);
+  }
+  function render(){
+    if(state._activePathId && stableValid) renderActive();
+    else renderFull();
+  }
+  function drawObject(o){
+    if(o.type==='path'){
+      ctx.strokeStyle=o.color; ctx.fillStyle=o.color; ctx.lineWidth=o.width; ctx.lineCap='round'; ctx.lineJoin='round';
+      if(o.points.length===1){ ctx.beginPath(); ctx.arc(o.points[0].x,o.points[0].y,o.width/2,0,Math.PI*2); ctx.fill(); return; }
+      ctx.beginPath(); ctx.moveTo(o.points[0].x,o.points[0].y);
+      if(o.points.length===2){
+        ctx.lineTo(o.points[1].x,o.points[1].y);
+      } else {
+        /* quadratic bezier through midpoints — eliminates jagged line segments
+           and makes cursive/handwritten strokes look smooth at any speed       */
+        for(let i=1;i<o.points.length-1;i++){
+          const mx=(o.points[i].x+o.points[i+1].x)/2;
+          const my=(o.points[i].y+o.points[i+1].y)/2;
+          ctx.quadraticCurveTo(o.points[i].x,o.points[i].y,mx,my);
+        }
+        ctx.lineTo(o.points[o.points.length-1].x,o.points[o.points.length-1].y);
+      }
+      ctx.stroke();
+    } else if(o.type==='shape'){
+      ctx.strokeStyle=o.color; ctx.lineWidth=o.width; ctx.lineCap='round';
+      if(o.subtype==='line'){ ctx.beginPath(); ctx.moveTo(o.x1,o.y1); ctx.lineTo(o.x2,o.y2); ctx.stroke(); }
+      else if(o.subtype==='rect'){ const x=Math.min(o.x1,o.x2),y=Math.min(o.y1,o.y2); ctx.strokeRect(x,y,Math.abs(o.x2-o.x1),Math.abs(o.y2-o.y1)); }
+      else if(o.subtype==='ellipse'){ const x=Math.min(o.x1,o.x2),y=Math.min(o.y1,o.y2), w=Math.abs(o.x2-o.x1), h=Math.abs(o.y2-o.y1);
+        ctx.beginPath(); ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); ctx.stroke(); }
+    } else if(o.type==='image'){
+      if(o._imgEl && o._imgEl.complete) ctx.drawImage(o._imgEl,o.x,o.y,o.w,o.h);
+      else { ctx.fillStyle='#eee'; ctx.fillRect(o.x,o.y,o.w,o.h); }
+    } else if(o.type==='text'){
+      drawMathText(ctx,o.text,o.x,o.y,o.fontSize,o.color);
+    } else if(o.type==='fraction'){
+      const fs=o.fontSize*0.85; const mn=measureMath(ctx,o.num,fs), md=measureMath(ctx,o.den,fs);
+      const w=Math.max(mn.width,md.width)+14; const lineY=o.y+o.fontSize*1.05;
+      drawMathText(ctx,o.num,o.x+(w-mn.width)/2,lineY-6,fs,o.color);
+      ctx.strokeStyle=o.color; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(o.x,lineY); ctx.lineTo(o.x+w,lineY); ctx.stroke();
+      drawMathText(ctx,o.den,o.x+(w-md.width)/2,lineY+fs*0.85,fs,o.color);
+    } else if(o.type==='sticky'){
+      ctx.save();
+      const cx=o.x+o.w/2, cy=o.y+o.h/2; ctx.translate(cx,cy); ctx.rotate(-0.03); ctx.translate(-cx,-cy);
+      ctx.fillStyle=o.color; roundRect(ctx,o.x,o.y,o.w,o.h,10); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.font="16px 'Patrick Hand', cursive";
+      wrapText(ctx,o.text,o.x+12,o.y+26,o.w-24,20);
+      ctx.restore();
+    }
+  }
+  function drawSelection(o){
+    const b=bbox(o); ctx.save();
+    ctx.strokeStyle='#9A8FC9'; ctx.setLineDash([6,4]); ctx.lineWidth=1.5;
+    ctx.strokeRect(b.x-4,b.y-4,b.w+8,b.h+8); ctx.setLineDash([]);
+    ctx.fillStyle='#E5484D'; ctx.beginPath(); ctx.arc(b.x+b.w+4,b.y-4,9,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('×', b.x+b.w+4, b.y-3);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    if(o.type==='image' || (o.type==='shape' && o.subtype!=='line')){ ctx.fillStyle='#9A8FC9'; ctx.fillRect(b.x+b.w-3,b.y+b.h-3,10,10); }
+    ctx.restore();
+  }
+  function drawArmedPreview(){
+    const p = state._hoverPos;
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    if(state.armed.kind === 'fraction'){
+      drawMathText(ctx, state.armed.num+'/'+state.armed.den, p.x-14, p.y+10, 24, state.color);
+    } else {
+      drawMathText(ctx, state.armed.value, p.x-10, p.y+10, 30, state.color);
+    }
+    ctx.restore();
+  }
+
+  function annotating(){ return !!(opts.isAnnotating && opts.isAnnotating()); }
+  function canDraw(){ return annotating() ? true : !state.locked; }
+  function activeOwner(){ return annotating() ? 'teacher' : role; }
+  function activeColor(){ return annotating() ? opts.annotateConfig.color : state.color; }
+  function activeWidth(){ return annotating() ? opts.annotateConfig.width : state.width; }
+  function activeTool(){ return annotating() ? opts.annotateConfig.tool : state.tool; }
+  function updateCursor(x,y){
+    if(!cursorEl) return;
+    cursorEl.style.transform = 'translate('+x+'px,'+y+'px)';
+    cursorEl.textContent = role==='teacher' ? '🧑\u200d🏫 Teacher' : '🙂 You';
+    cursorEl.style.opacity='1';
+    clearTimeout(state._cursorTimer);
+    state._cursorTimer = setTimeout(()=>{ cursorEl.style.opacity='0'; }, 1400);
+  }
+  function localPos(e){ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+
+  function onPointerDown(e){
+    if(canvas.setPointerCapture){ try{ canvas.setPointerCapture(e.pointerId); }catch(err){} }
+    if(window.setFocusedBoard) window.setFocusedBoard(boardHandle);
+    const {x,y} = localPos(e);
+    if(!canDraw()) return;
+    if(state.armed){ placeArmedAt(x,y); return; }
+    const tool = activeTool(); const owner = activeOwner();
+    if(tool==='select'){
+      if(state.selectedId){
+        const sel = getObj(state.selectedId);
+        if(sel){
+          const b = bbox(sel);
+          if(dist(x,y,b.x+b.w+4,b.y-4) <= 10){ pushHistory(); state.objects=state.objects.filter(o=>o.id!==sel.id); state.selectedId=null; commit(); return; }
+          if((sel.type==='image' || (sel.type==='shape'&&sel.subtype!=='line')) && dist(x,y,b.x+b.w,b.y+b.h)<=10){ pushHistory(); state._resizing={id:sel.id}; return; }
+        }
+      }
+      const hit = hitTest(x,y);
+      if(hit){ state.selectedId=hit.id; state._dragCandidate={id:hit.id,startX:x,startY:y,orig:JSON.parse(JSON.stringify(hit))}; render(); }
+      else { state.selectedId=null; render(); }
+      return;
+    }
+    if(tool==='eraser'){ pushHistory(); state._erasing=true; eraseNear(x,y,owner); return; }
+    if(tool==='pen' || tool==='highlight'){
+      pushHistory();
+      const obj = newObj('path',{points:[{x,y}], color:activeColor(), width: tool==='highlight'? activeWidth()*4 : activeWidth(), owner});
+      if(tool==='highlight') obj._alpha=0.35;
+      state.objects.push(obj); state._activePathId=obj.id; commit(); return;
+    }
+    if(tool==='shape-rect' || tool==='shape-line' || tool==='shape-ellipse'){
+      pushHistory(); const subtype=tool.split('-')[1];
+      const obj = newObj('shape',{subtype, x1:x,y1:y,x2:x,y2:y, color:activeColor(), width:activeWidth(), owner});
+      state.objects.push(obj); state._activeShapeId=obj.id; commit(); return;
+    }
+  }
+  function onPointerMove(e){
+    const {x,y} = localPos(e); updateCursor(x,y);
+    if(state.armed){ state._hoverPos = {x,y}; render(); }
+    if(!canDraw()) return;
+    if(state._resizing){
+      const o = getObj(state._resizing.id);
+      if(o){ if(o.type==='image'){ o.w=Math.max(20,x-o.x); o.h=Math.max(20,y-o.y); } else if(o.type==='shape'){ o.x2=x; o.y2=y; } render(); }
+      return;
+    }
+    if(state._dragCandidate){
+      const dx=x-state._dragCandidate.startX, dy=y-state._dragCandidate.startY;
+      if(!state._dragging && Math.hypot(dx,dy)>3){ pushHistory(); state._dragging=true; }
+      if(state._dragging){
+        const o=getObj(state._dragCandidate.id); const orig=state._dragCandidate.orig;
+        if(o){
+          if(o.type==='path'){ o.points = orig.points.map(p=>({x:p.x+dx,y:p.y+dy})); }
+          else if(o.type==='shape'){ o.x1=orig.x1+dx; o.y1=orig.y1+dy; o.x2=orig.x2+dx; o.y2=orig.y2+dy; }
+          else { o.x=orig.x+dx; o.y=orig.y+dy; }
+          render();
+        }
+      }
+      return;
+    }
+    if(state._erasing){ eraseNear(x,y,activeOwner()); return; }
+    if(state._activePathId){
+      const o=getObj(state._activePathId);
+      if(o){
+        const last=o.points[o.points.length-1];
+        if(Math.hypot(x-last.x,y-last.y) >= 2){
+          o.points.push({x,y}); render(); // uses fast stable-canvas path
+          if(opts.onStrokeLive) opts.onStrokeLive(state._activePathId, o);
+        }
+      }
+      return;
+    }
+    if(state._activeShapeId){ const o=getObj(state._activeShapeId); if(o){ o.x2=x; o.y2=y; render(); } return; }
+  }
+  function onPointerUp(){
+    if(state._dragCandidate){ state._dragCandidate=null; if(state._dragging) scheduleSave(); state._dragging=false; }
+    if(state._resizing){ state._resizing=null; scheduleSave(); }
+    if(state._erasing){ state._erasing=false; }
+    if(state._activePathId){
+      const finalId=state._activePathId; state._activePathId=null; stableValid=false;
+      commit(); // immediate full sync so teacher gets the completed stroke at once
+    }
+    if(state._activeShapeId){
+      const o=getObj(state._activeShapeId);
+      if(o){ const w=Math.abs(o.x2-o.x1), h=Math.abs(o.y2-o.y1);
+        if(w<6 && h<6){ state.objects = state.objects.filter(x=>x.id!==o.id); if(state.history.length) state.history.pop(); } }
+      state._activeShapeId=null; scheduleSave(); render();
+    }
+  }
+  function eraseNear(x,y,actorOwner){
+    const r = activeWidth()*2+8; let changed=false;
+    state.objects = state.objects.filter(o=>{
+      if(o.type!=='path') return true;
+      if(o.owner==='teacher' && actorOwner!=='teacher') return true;
+      for(const p of o.points){ if(dist(p.x,p.y,x,y)<=r){ changed=true; return false; } }
+      return true;
+    });
+    if(changed) render();
+  }
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerleave', ()=>{ if(state.armed){ state._hoverPos=null; render(); } });
+  window.addEventListener('pointerup', onPointerUp);
+  canvas.style.touchAction='none';
+
+  function armSymbol(value){
+    state.armed = (state.armed && state.armed.kind==='text' && state.armed.value===value) ? null : {kind:'text', value};
+    state._hoverPos = null;
+    canvas.style.cursor = state.armed ? 'crosshair' : '';
+    if(opts.onArmedChange) opts.onArmedChange(state.armed);
+    render();
+  }
+  function armFraction(num, den){
+    state.armed = {kind:'fraction', num: num||'?', den: den||'?'};
+    state._hoverPos = null;
+    canvas.style.cursor = 'crosshair';
+    if(opts.onArmedChange) opts.onArmedChange(state.armed);
+    render();
+  }
+  function disarm(){
+    state.armed = null;
+    canvas.style.cursor = '';
+    if(opts.onArmedChange) opts.onArmedChange(null);
+    render();
+  }
+  function placeArmedAt(x,y){
+    if(!state.armed) return;
+    pushHistory();
+    const color = annotating() ? opts.annotateConfig.color : state.color;
+    if(state.armed.kind === 'fraction'){
+      const obj = newObj('fraction', {x:x-22, y:y-16, num:state.armed.num, den:state.armed.den, color, fontSize:28, owner:activeOwner()});
+      state.objects.push(obj);
+    } else {
+      const obj = newObj('text', {x:x-10, y:y+10, text:state.armed.value, color, fontSize:30, owner:activeOwner()});
+      state.objects.push(obj);
+    }
+    state.armed = null;
+    canvas.style.cursor = '';
+    if(opts.onArmedChange) opts.onArmedChange(null);
+    commit();
+  }
+  function insertSticky(text,color){
+    pushHistory();
+    const n = state.objects.filter(o=>o.type==='sticky').length;
+    const obj = newObj('sticky',{x:wrap.clientWidth-180-(n*12), y:14+(n*12), w:160,h:90, text, color:color||'#FFCB52', owner:'teacher'});
+    state.objects.push(obj); commit();
+  }
+  function insertImageFromFile(file){
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        pushHistory();
+        const maxW = Math.min(260, wrap.clientWidth*0.6);
+        const ratio = img.naturalHeight/img.naturalWidth;
+        const obj = newObj('image',{x:30,y:30,w:maxW,h:maxW*ratio, src:ev.target.result, owner:activeOwner()});
+        obj._imgEl = img; state.objects.push(obj); commit();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  function clearMine(){ pushHistory(); state.objects = state.objects.filter(o=>o.owner!==role); commit(); }
+  function deleteSelected(){
+    if(!state.selectedId) return;
+    pushHistory(); state.objects = state.objects.filter(o=>o.id!==state.selectedId); state.selectedId=null; commit();
+  }
+  function setTool(t){ disarm(); state.tool=t; state.selectedId=null; canvas.style.cursor=''; }
+  function setColor(c){ state.color=c; }
+  function setWidth(w){ state.width=w; }
+  function setLocked(v){ state.locked=v; render(); }
+  function destroy(){ ro.disconnect(); }
+
+  resize();
+  const boardHandle = {
+    state, render, undo, redo, setTool, setColor, setWidth, setLocked, destroy,
+    armSymbol, armFraction, disarm, insertSticky,
+    insertImageFromFile, clearMine, deleteSelected,
+    setStableValid: (v)=>{ stableValid=v; }
+  };
+  return boardHandle;
+}
+
+/* ── Floating keyboard ── */
+const FKBD_CATS = {
+  ops:  { label:'Ops',      keys: [['+','+'],['-','-'],['×','×'],['÷','÷'],['=','=']] },
+  alg:  { label:'Algebra',  keys: [['x','x'],['y','y'],['z','z'],['a','a'],['b','b'],['c','c']] },
+  sym:  { label:'Symbols',  keys: [['(','('],[')',')'],['[','['],[']',']'],['%','%'],['π','π'],['√','√'],['∞','∞'],['≠','≠'],['≤','≤'],['≥','≥'],['°','°']] },
+  exp:  { label:'Exponents',keys: [['x²','x^2'],['x³','x^3'],['xⁿ','x^n'],['x₁','x_1'],['x₂','x_2'],['^','^'],['_','_']] },
+  frac: { label:'Frac',     special:'fraction' },
+  geo:  { label:'Geo/Stats',keys: [['∠','∠'],['△','△'],['⊥','⊥'],['∥','∥'],['Σ','Σ'],['μ','μ'],['σ','σ'],['∫','∫'],['Δ','Δ'],['∂','∂']] }
+};
+const activeCats = new Set(['ops']); // ops on by default
+
+function syncArmedHighlight(armed){
+  document.querySelectorAll('.fkey.armed').forEach(b=>b.classList.remove('armed'));
+  if(!armed) return;
+  if(armed.kind==='text'){
+    const esc = window.CSS&&CSS.escape ? CSS.escape(armed.value) : armed.value;
+    const btn = document.querySelector('.fkey[data-ins="'+esc+'"]');
+    if(btn) btn.classList.add('armed');
+  } else {
+    const btn = document.querySelector('.fkey[data-frac]');
+    if(btn) btn.classList.add('armed');
+  }
+}
+
+function buildFloatKbdKeys(){
+  const container = document.getElementById('floatKbdKeys');
+  container.innerHTML = '';
+
+  // numbers row (always)
+  const numRow = document.createElement('div');
+  numRow.className = 'fkbd-row';
+  for(let i=1;i<=9;i++) numRow.innerHTML += '<button class="fkey" data-ins="'+i+'">'+i+'</button>';
+  numRow.innerHTML += '<button class="fkey" data-ins="0">0</button>';
+  container.appendChild(numRow);
+
+  // active categories
+  activeCats.forEach(catId=>{
+    const cat = FKBD_CATS[catId];
+    if(!cat) return;
+    if(cat.special === 'fraction'){
+      const row = document.createElement('div');
+      row.className = 'fkbd-row';
+      row.innerHTML = '<button class="fkey" data-frac style="font-size:15px;flex:1;min-width:80px;">½ Fraction</button>';
+      container.appendChild(row);
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'fkbd-row';
+    cat.keys.forEach(([l,v])=>{ row.innerHTML += '<button class="fkey" data-ins="'+v+'">'+l+'</button>'; });
+    container.appendChild(row);
+  });
+
+  // tap handlers
+  container.querySelectorAll('.fkey[data-ins]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(board){ window.setFocusedBoard(board); board.armSymbol(btn.dataset.ins); }
+    });
+  });
+  container.querySelectorAll('.fkey[data-frac]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ if(board) window.openFractionModal(board); });
+  });
+}
+
+/* panel drag — pointer capture on header so it tracks reliably off-element */
+const floatKbd = document.getElementById('floatKbd');
+const floatHandle = document.getElementById('floatKbdHandle');
+let panelDrag = null;
+floatHandle.addEventListener('pointerdown', (e)=>{
+  const r = floatKbd.getBoundingClientRect();
+  panelDrag = {startX:e.clientX, startY:e.clientY, origLeft:r.left, origTop:r.top};
+  try{ floatHandle.setPointerCapture(e.pointerId); }catch(err){}
+  e.preventDefault();
+});
+floatHandle.addEventListener('pointermove', (e)=>{
+  if(!panelDrag) return;
+  let left = panelDrag.origLeft + (e.clientX - panelDrag.startX);
+  let top  = panelDrag.origTop  + (e.clientY - panelDrag.startY);
+  left = Math.max(4, Math.min(window.innerWidth - floatKbd.offsetWidth - 4, left));
+  top  = Math.max(4, Math.min(window.innerHeight - 80, top));
+  floatKbd.style.left = left+'px';
+  floatKbd.style.top  = top+'px';
+});
+floatHandle.addEventListener('pointerup', ()=>{ panelDrag = null; });
+
+/* category toggles */
+document.querySelectorAll('.cat-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const cat = btn.dataset.cat;
+    if(activeCats.has(cat)){ activeCats.delete(cat); btn.classList.remove('active'); }
+    else { activeCats.add(cat); btn.classList.add('active'); }
+    buildFloatKbdKeys();
+    syncArmedHighlight(board ? board.state.armed : null);
+  });
+});
+
+document.getElementById('floatKbdClose').addEventListener('click', ()=>{
+  floatKbd.style.display='none';
+  document.getElementById('kbdToggleBtn').classList.remove('active');
+});
+
+let focusedBoard = null;
+window.setFocusedBoard = (b)=>{ focusedBoard = b; };
+window.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName||'').toLowerCase();
+  if(tag==='input' || tag==='textarea') return;
+  if(!focusedBoard) return;
+  if(e.key==='Escape'){ focusedBoard.disarm(); return; }
+  if(e.key==='Delete'){ focusedBoard.deleteSelected(); return; }
+});
+
+/* fraction modal */
+const fracNum = document.getElementById('fracNum');
+const fracDen = document.getElementById('fracDen');
+const fractionModalEl = document.getElementById('fractionModal');
+let fractionTargetBoard = null;
+window.openFractionModal = (b)=>{ fractionTargetBoard=b; fracNum.value=''; fracDen.value=''; fractionModalEl.classList.add('show'); fracNum.focus(); };
+document.getElementById('fracCancel').addEventListener('click', ()=> fractionModalEl.classList.remove('show'));
+document.getElementById('fracInsert').addEventListener('click', ()=>{
+  if(fractionTargetBoard) fractionTargetBoard.armFraction(fracNum.value, fracDen.value);
+  fractionModalEl.classList.remove('show');
+});
+
+/* =========================================================
+   Auth + realtime connection
+   ========================================================= */
+function reconstructImages(objects){
+  objects.forEach(o=>{
+    if(o.type==='image' && o.src && !o._imgEl){
+      const im = new Image();
+      im.onload = ()=>{ if(board) board.render(); };
+      im.src = o.src; o._imgEl = im;
+    }
+  });
+  return objects;
+}
+
+/* =========================================================
+   Realtime connection
+   ========================================================= */
+const socket = io();
+let myStudentId = null;
+let myClassroomCode = null;
+let myStudentToken = null;
+const connDot = document.getElementById('connDot');
+socket.on('connect', ()=>{ connDot.textContent='Connected'; connDot.classList.remove('offline'); });
+socket.on('disconnect', ()=>{ connDot.textContent='Disconnected'; connDot.classList.add('offline'); });
+socket.on('connect_error', ()=>{ connDot.textContent='Disconnected'; connDot.classList.add('offline'); });
+
+socket.on('teacher:command', (cmd)=>{
+  if(!board) return;
+  if(cmd.type === 'lock'){
+    const perms=JSON.parse(localStorage.getItem('slate_perms')||'{}');
+    if(cmd.locked && perms.lock===false){ return; } // student revoked lock permission
+    board.setLocked(cmd.locked);
+    document.getElementById('lockBanner').classList.toggle('show', cmd.locked);
+  } else if(cmd.type === 'objects'){
+    board.state.objects = reconstructImages(cmd.objects);
+    board.render();
+  } else if(cmd.type === 'hint'){
+    board.insertSticky(cmd.text, '#FFCB52');
+  }
+});
+
+/* ── Password eye toggle ── */
+document.querySelectorAll('.pw-eye').forEach(btn=>btn.addEventListener('click',()=>{
+  const inp=document.getElementById(btn.dataset.eye);if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';
+}));
+
+/* ── Login ── */
+/* ── Quick join (link-based, no account) ── */
+const _urlCode = new URLSearchParams(window.location.search).get('code');
+const _sessionKey = localStorage.getItem('slate_session')||(()=>{const k=Math.random().toString(36).slice(2);localStorage.setItem('slate_session',k);return k;})();
+if(_urlCode){
+  document.getElementById('quickJoinSection').style.display='block';
+  document.getElementById('loginTitle').textContent='Join Whiteboard';
+  document.getElementById('loginSubtitle').style.display='none';
+  window._quickJoinCode=_urlCode;
+  // Fetch the room name so we can display it before the student types their name
+  fetch('/api/whiteboard/'+_urlCode)
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok) document.getElementById('quickJoinRoomName').textContent=d.name; })
+    .catch(()=>{});
+}
+document.getElementById('quickJoinBtn').addEventListener('click',doQuickJoin);
+document.getElementById('quickJoinName').addEventListener('keydown',e=>{if(e.key==='Enter')doQuickJoin();});
+async function doQuickJoin(){
+  const name=document.getElementById('quickJoinName').value.trim();
+  const errEl=document.getElementById('quickJoinError');
+  const btn=document.getElementById('quickJoinBtn');
+  if(!name){errEl.textContent='Please enter your name.';return;}
+  errEl.textContent='Joining…';errEl.style.color='var(--ink-soft)';btn.disabled=true;
+  if(!socket.connected) socket.connect();
+  socket.emit('whiteboard:quickjoin',{code:window._quickJoinCode,name,sessionKey:_sessionKey},(res)=>{
+    btn.disabled=false;
+    if(!res||!res.ok){errEl.textContent=res&&res.error||'Could not join.';errEl.style.color='var(--red)';return;}
+    errEl.textContent='';
+    myStudentId=res.studentId; myClassroomCode=res.code;
+    // Restore previous work if any
+    const guestSession={name,sessionKey:_sessionKey,restoreObjects:res.objects||[]};
+    enterWorkspaceGuest(name,'🙂',res.classroomName,res.objects||[]);
+  });
+}
+function enterWorkspaceGuest(name,avatar,classroomName,savedObjects){
+  document.getElementById('wsClassName').textContent=classroomName||'Whiteboard';
+  document.getElementById('wsAvatar').textContent=avatar;
+  document.getElementById('wsName').textContent=name;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('workspaceScreen').style.display='flex';
+  const wrap=document.getElementById('boardWrap');
+  const canvas=document.getElementById('boardCanvas');
+  if(board) board.destroy();
+  board=createBoard({canvas,wrap,cursorEl:document.getElementById('boardCursor'),saveEl:null,role:'student',
+    opts:{isAnnotating:()=>false,annotateConfig:null,onArmedChange:syncArmedHighlight,
+      onSync:(objects)=>{if(socket.connected)socket.emit('student:sync',{
+        objects:JSON.parse(JSON.stringify(objects,(k,v)=>k==='_imgEl'?undefined:v)),
+        canvasWidth:wrap.clientWidth,canvasHeight:wrap.clientHeight});},
+      onStrokeLive:(function(){let pending=null,rafId=null;return(pathId,o)=>{
+        pending={pathId,color:o.color,width:o.width,owner:o.owner,_alpha:o._alpha||null,points:o.points};
+        if(!rafId)rafId=requestAnimationFrame(()=>{
+          if(pending&&socket.connected&&myStudentId)socket.emit('stroke:live',{studentId:myStudentId,code:myClassroomCode,...pending});
+          pending=null;rafId=null;});};})()
+    }});
+  window.setFocusedBoard(board);
+  if(savedObjects&&savedObjects.length){
+    // Restore previous session work
+    board.state.objects=savedObjects.map(o=>{
+      if(o.type==='image'&&o.src){const im=new Image();im.onload=()=>board.render();im.src=o.src;o._imgEl=im;}return o;});
+  } else {
+    board.state.objects=[newObj('sticky',{x:24,y:20,w:220,h:92,
+      text:'Welcome, '+name+'! ✍️ Your teacher can see your work.',color:'#FFCB52',owner:'teacher',bornAt:0})];
+  }
+  board.render();
+  if(socket.connected)socket.emit('student:sync',{objects:board.state.objects,canvasWidth:wrap.clientWidth,canvasHeight:wrap.clientHeight});
+  wireToolbar();
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('sPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+async function doLogin(){
+  const username = document.getElementById('sUsername').value.trim().toLowerCase();
+  const pw = document.getElementById('sPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  if(!username){ errEl.textContent='Enter your username.'; return; }
+  if(!pw){ errEl.textContent='Enter your password.'; return; }
+  errEl.textContent='Signing in…'; errEl.style.color='var(--ink-soft)'; btn.disabled=true;
+  try{
+    const res = await fetch('/api/student/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password:pw})});
+    const data = await res.json();
+    btn.disabled=false;
+    if(!data.ok){ errEl.textContent=data.error||'Incorrect username or password.'; errEl.style.color='var(--red)'; return; }
+    myStudentToken = data.token;
+    errEl.textContent='';
+    myStudentMeta = {name: data.name, avatar: data.avatar||'🙂'};
+    if(data.classroomCode){
+      // Already has a classroom — join directly
+      if(!socket.connected) socket.connect();
+      socket.emit('classroom:join', {code: data.classroomCode, token: myStudentToken}, (res2)=>{
+        if(!res2||!res2.ok){ errEl.textContent=(res2&&res2.error)||'Could not join classroom.'; errEl.style.color='var(--red)'; return; }
+        myStudentId = res2.studentId;
+        myClassroomCode = res2.code;
+        enterWorkspace(data.name, data.avatar||'🙂', res2.classroomName);
+      });
+    } else {
+      // No classroom yet — check for invitations
+      enterInviteScreen(data.name, data.avatar||'🙂');
+    }
+  }catch(e){
+    btn.disabled=false; errEl.textContent='Could not reach the server.'; errEl.style.color='var(--red)';
+  }
+}
+
+
+let myStudentMeta = {name:'', avatar:'🙂'};
+
+async function enterInviteScreen(name, avatar){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('inviteScreen').style.display='flex';
+  document.getElementById('wsAvatar').textContent=avatar;
+  document.getElementById('wsName').textContent=name;
+  await loadInvitations();
+}
+
+async function loadInvitations(){
+  const res = await fetch('/api/invitations/mine',{headers:{'Authorization':'Bearer '+myStudentToken}});
+  const data = await res.json();
+  const list = document.getElementById('inviteList');
+  const noMsg = document.getElementById('noInviteMsg');
+  if(!data.ok||!data.invitations.length){
+    list.innerHTML=''; noMsg.style.display='block'; return;
+  }
+  noMsg.style.display='none';
+  list.innerHTML = data.invitations.map(inv=>`
+    <div class="invite-card" id="inv-${inv.id}" style="background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px;">Invitation from</div>
+      <div style="font-family:var(--font-display);font-size:18px;margin-bottom:3px;">${inv.teacherName}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--teal-dark);margin-bottom:14px;">📚 ${inv.classroomName}</div>
+      <div style="font-size:12.5px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Teacher will be allowed to:</div>
+      <div class="perm-choices" id="perms-${inv.id}">
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">
+          <input type="checkbox" disabled checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">👁 See my work</div><div style="font-size:11px;color:var(--ink-soft);">Always required — cannot be turned off</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="annotate" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">✏️ Draw corrections on my board</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can annotate and highlight your work</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="lock" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">🔒 Lock my board</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can pause your board during class</div></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;">
+          <input type="checkbox" class="perm-check" name="editProfile" checked style="width:17px;height:17px;">
+          <div><div style="font-weight:700;font-size:13px;">👤 Edit my name & avatar</div><div style="font-size:11px;color:var(--ink-soft);">Teacher can update your display info</div></div>
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="login-btn" data-accept="${inv.id}" style="flex:2;">Accept & Join Classroom</button>
+        <button data-decline="${inv.id}" style="flex:1;border:1.5px solid var(--line);border-radius:999px;background:none;font-family:var(--font-body);font-weight:700;cursor:pointer;color:var(--ink-soft);">Decline</button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-accept]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const invId=btn.dataset.accept;
+    const card=document.getElementById('inv-'+invId);
+    const checks=card.querySelectorAll('.perm-check');
+    const permissions={annotate:true,lock:true,editProfile:true};
+    checks.forEach(c=>{ permissions[c.name]=c.checked; });
+    btn.textContent='Joining…'; btn.disabled=true;
+    const res=await fetch('/api/invitations/'+invId,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myStudentToken},body:JSON.stringify({status:'accepted',permissions})});
+    const data=await res.json();
+    if(!data.ok){ btn.textContent='Accept & Join Classroom'; btn.disabled=false; return; }
+    localStorage.setItem('slate_perms',JSON.stringify(permissions));
+    // Now join the classroom via socket
+    if(!socket.connected) socket.connect();
+    socket.emit('classroom:join',{code:data.classroomCode,token:myStudentToken},(res2)=>{
+      if(!res2||!res2.ok){ btn.textContent='Accept & Join Classroom'; btn.disabled=false; return; }
+      myStudentId=res2.studentId; myClassroomCode=res2.code;
+      document.getElementById('inviteScreen').style.display='none';
+      enterWorkspace(myStudentMeta.name,myStudentMeta.avatar,data.classroomName);
+    });
+  }));
+  list.querySelectorAll('[data-decline]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const invId=btn.dataset.decline;
+    await fetch('/api/invitations/'+invId,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+myStudentToken},body:JSON.stringify({status:'declined'})});
+    document.getElementById('inv-'+invId).remove();
+    if(!document.getElementById('inviteList').children.length){
+      document.getElementById('noInviteMsg').style.display='block';
+    }
+  }));
+}
+
+let board = null;
+function enterWorkspace(name, avatar, classroomName){
+  document.getElementById('wsClassName').textContent = classroomName || 'Classroom';
+  document.getElementById('wsAvatar').textContent = avatar;
+  document.getElementById('wsName').textContent = name;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('workspaceScreen').classList.add('active');
+
+  const wrap = document.getElementById('boardWrap');
+  const canvas = document.getElementById('boardCanvas');
+  if(board) board.destroy();
+  board = createBoard({canvas, wrap, cursorEl: document.getElementById('boardCursor'), saveEl:null, role:'student',
+    opts:{
+      isAnnotating:()=>false, annotateConfig:null, onArmedChange: syncArmedHighlight,
+      onSync: (objects)=>{ if(socket.connected) socket.emit('student:sync', {
+        objects: JSON.parse(JSON.stringify(objects, (k,v)=> k==='_imgEl' ? undefined : v)),
+        canvasWidth: wrap.clientWidth, canvasHeight: wrap.clientHeight
+      }); },
+      onStrokeLive: (function(){
+        // rAF-throttled: never sends more than once per display frame (~60fps)
+        let pending=null, rafId=null;
+        return (pathId, o)=>{
+          pending={pathId,color:o.color,width:o.width,owner:o.owner,_alpha:o._alpha||null,points:o.points};
+          if(!rafId) rafId=requestAnimationFrame(()=>{
+            if(pending&&socket.connected&&myStudentId){
+              socket.emit('stroke:live',{studentId:myStudentId,code:myClassroomCode,...pending});
+            }
+            pending=null; rafId=null;
+          });
+        };
+      })()
+    }});
+  window.setFocusedBoard(board);
+  board.state.objects = [
+    newObj('sticky', {x: 24, y: 20, w: 220, h: 92, text: 'Welcome, '+name+'! ✍️ Your teacher can see your work and send hints as you go.', color:'#FFCB52', owner:'teacher', bornAt:0})
+  ];
+  board.render();
+  if(socket.connected) socket.emit('student:sync', {objects: board.state.objects, canvasWidth: wrap.clientWidth, canvasHeight: wrap.clientHeight});
+  wireToolbar();
+}
+
+document.getElementById('leaveBtn').addEventListener('click', ()=>{
+  document.getElementById('workspaceScreen').classList.remove('active');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('inviteScreen').style.display='none';
+  document.getElementById('lockBanner').classList.remove('show');
+  floatKbd.style.display='none';
+  myStudentMeta={name:'',avatar:'🙂'};
+  socket.disconnect();
+  myStudentToken=null; myStudentId=null; myClassroomCode=null;
+  document.getElementById('sUsername').value='';
+  document.getElementById('sPassword').value='';
+  document.getElementById('loginError').textContent='';
+});
+
+let toolbarWired = false;
+function wireToolbar(){
+  if(toolbarWired) return;
+  toolbarWired = true;
+  const toolbar = document.getElementById('toolbar');
+  toolbar.addEventListener('click', (e)=>{
+    window.setFocusedBoard(board);
+    const toolBtn = e.target.closest('[data-tool]');
+    if(toolBtn){
+      board.setTool(toolBtn.dataset.tool);
+      toolbar.querySelectorAll('[data-tool]').forEach(b=>b.classList.remove('active'));
+      toolBtn.classList.add('active'); board.render(); return;
+    }
+    const colorBtn = e.target.closest('[data-color]');
+    if(colorBtn){ board.setColor(colorBtn.dataset.color); toolbar.querySelectorAll('.swatch').forEach(b=>b.classList.remove('active')); colorBtn.classList.add('active'); return; }
+    const widthBtn = e.target.closest('[data-width]');
+    if(widthBtn){ board.setWidth(parseInt(widthBtn.dataset.width,10)); toolbar.querySelectorAll('.wbtn').forEach(b=>b.classList.remove('active')); widthBtn.classList.add('active'); return; }
+  });
+  document.getElementById('undoBtn').addEventListener('click', ()=>{ window.setFocusedBoard(board); board.undo(); });
+  document.getElementById('redoBtn').addEventListener('click', ()=>{ window.setFocusedBoard(board); board.redo(); });
+
+  const clearBtn = document.getElementById('clearBtn');
+  let confirming = false;
+  clearBtn.addEventListener('click', ()=>{
+    window.setFocusedBoard(board);
+    if(!confirming){ confirming=true; const orig=clearBtn.textContent; clearBtn.textContent='✓ Sure?'; setTimeout(()=>{ confirming=false; clearBtn.textContent=orig; }, 2500); }
+    else { confirming=false; board.clearMine(); clearBtn.textContent='🗑️'; }
+  });
+
+  const imgBtn = document.getElementById('imageBtn');
+  const imgInput = document.getElementById('imageInput');
+  imgBtn.addEventListener('click', ()=>{ window.setFocusedBoard(board); imgInput.click(); });
+  imgInput.addEventListener('change', ()=>{ if(imgInput.files[0]) board.insertImageFromFile(imgInput.files[0]); imgInput.value=''; });
+
+  /* floating keyboard toggle */
+  const kbdBtn = document.getElementById('kbdToggleBtn');
+  kbdBtn.addEventListener('click', ()=>{
+    const showing = floatKbd.style.display === 'block';
+    if(showing){ floatKbd.style.display='none'; kbdBtn.classList.remove('active'); }
+    else {
+      floatKbd.style.display='block'; kbdBtn.classList.add('active');
+      buildFloatKbdKeys();
+      if(!floatKbd.style.left){
+        const r = document.getElementById('boardWrap').getBoundingClientRect();
+        floatKbd.style.left = Math.max(12, r.right - 310)+'px';
+        floatKbd.style.top  = Math.max(12, r.top + 12)+'px';
+      }
+    }
+  });
+  buildFloatKbdKeys(); // pre-build so first open is instant
+}
+
+
+/* ── Theme toggle ── */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('slate_theme',t);
+  const btn=document.getElementById('themeToggle');
+  if(btn) btn.textContent=t==='dark'?'☀️':'🌙';
+}
+setTheme(localStorage.getItem('slate_theme')||'light');
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+});
+
+/* ── Permissions modal ── */
+let savedPerms={annotate:true,lock:true,editProfile:true};
+function loadPerms(){
+  try{ const p=JSON.parse(localStorage.getItem('slate_perms')); if(p) savedPerms=p; }catch(e){}
+  document.getElementById('permAnnotate').checked=savedPerms.annotate;
+  document.getElementById('permLock').checked=savedPerms.lock;
+  document.getElementById('permEditProfile').checked=savedPerms.editProfile;
+}
+function savePerms(){
+  savedPerms={
+    annotate:document.getElementById('permAnnotate').checked,
+    lock:document.getElementById('permLock').checked,
+    editProfile:document.getElementById('permEditProfile').checked
+  };
+  localStorage.setItem('slate_perms',JSON.stringify(savedPerms));
+  if(myStudentId&&socket.connected) socket.emit('student:permissions',{studentId:myStudentId,code:myClassroomCode,permissions:savedPerms});
+}
+document.getElementById('permSettingsBtn').addEventListener('click',()=>{ loadPerms(); document.getElementById('permModal').classList.add('show'); });
+document.getElementById('permClose').addEventListener('click',()=>document.getElementById('permModal').classList.remove('show'));
+document.getElementById('permCancel').addEventListener('click',()=>document.getElementById('permModal').classList.remove('show'));
+document.getElementById('permSave').addEventListener('click',()=>{ savePerms(); document.getElementById('permModal').classList.remove('show'); });
+
+/* ── PDF upload on student board ── */
+document.getElementById('pdfUploadBtn').addEventListener('click',()=>document.getElementById('pdfInput').click());
+document.getElementById('pdfInput').addEventListener('change',async(e)=>{
+  const file=e.target.files[0]; if(!file||!board) return;
+  e.target.value='';
+  if(!window.pdfjsLib){ alert('PDF viewer is loading… try again in a moment.'); return; }
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const total=pdf.numPages;
+  let pageNum=1;
+  if(total>1){
+    const p=parseInt(prompt('PDF has '+total+' pages. Which page to place? (1-'+total+')'),10);
+    if(p>=1&&p<=total) pageNum=p;
+  }
+  const page=await pdf.getPage(pageNum);
+  const viewport=page.getViewport({scale:1.8});
+  const c=document.createElement('canvas');
+  c.width=viewport.width; c.height=viewport.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport}).promise;
+  const dataUrl=c.toDataURL('image/png');
+  const img=new Image();
+  img.onload=()=>{
+    const wrap=document.getElementById('boardWrap');
+    const maxW=Math.min(480,wrap.clientWidth*0.85);
+    const ratio=img.naturalHeight/img.naturalWidth;
+    const obj=newObj('image',{x:30,y:30,w:maxW,h:maxW*ratio,src:dataUrl,owner:'student'});
+    obj._imgEl=img;
+    board.state.objects.push(obj);
+    board.render();
+  };
+  img.src=dataUrl;
+});
+
+/* ── Paste screenshot / image from clipboard ── */
+window.addEventListener('paste',(e)=>{
+  if(!board||board.state.locked) return;
+  const tag=(document.activeElement.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea') return;
+  const items=Array.from(e.clipboardData.items);
+  const imgItem=items.find(it=>it.type.startsWith('image/'));
+  if(!imgItem) return;
+  e.preventDefault();
+  const blob=imgItem.getAsFile();
+  board.insertImageFromFile(blob);
+});
+
+})();
+</script>
+</body>
+</html>

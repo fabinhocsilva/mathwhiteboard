@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Slate — Live Math Whiteboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cloud:#FBF8F2;--paper:#FFFEFB;--grid-dot:#E7E0CF;
+  --ink:#2F2B3D;--ink-soft:#6B6680;
+  --coral:#FF8A5C;--coral-dark:#E76B3C;--coral-bg:#FFF1E8;
+  --teal:#3FB3A4;--teal-dark:#2C8E82;--teal-bg:#EAF7F4;
+  --sunny:#FFCB52;--lavender:#9A8FC9;
+  --line:#ECE5D6;--radius:20px;
+  --shadow:0 4px 20px rgba(70,50,20,0.10);
+  --font-d:'Fredoka',sans-serif;--font-b:'Nunito',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:var(--font-b);color:var(--ink);min-height:100vh;
+  background-color:var(--cloud);
+  background-image:radial-gradient(circle,var(--grid-dot) 1.3px,transparent 1.4px);
+  background-size:26px 26px;
+  display:flex;flex-direction:column;
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:var(--font-b);cursor:pointer;}
+
+/* ── NAV ── */
+nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 40px;background:rgba(255,254,251,.88);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:10;
+}
+.nav-brand{font-family:var(--font-d);font-weight:700;font-size:22px;display:flex;align-items:center;gap:8px;}
+.nav-links{display:flex;gap:10px;}
+.nav-btn{
+  border:none;border-radius:999px;padding:9px 18px;font-family:var(--font-d);
+  font-weight:600;font-size:14px;cursor:pointer;
+}
+.nav-btn.teacher{background:var(--coral-dark);color:#fff;}
+.nav-btn.student{background:var(--teal-dark);color:#fff;}
+
+/* ── HERO ── */
+.hero{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:60px 24px 40px;text-align:center;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--sunny);color:var(--ink);font-size:12px;font-weight:800;
+  padding:5px 14px;border-radius:999px;margin-bottom:22px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.hero h1{
+  font-family:var(--font-d);font-size:clamp(32px,6vw,58px);font-weight:700;
+  line-height:1.15;max-width:760px;margin-bottom:18px;
+}
+.hero h1 .accent-coral{color:var(--coral-dark);}
+.hero h1 .accent-teal{color:var(--teal-dark);}
+.hero p{
+  font-size:clamp(15px,2vw,18px);color:var(--ink-soft);
+  max-width:540px;line-height:1.6;margin-bottom:48px;
+}
+
+/* ── PORTAL CARDS ── */
+.portals{
+  display:flex;gap:20px;flex-wrap:wrap;justify-content:center;
+  width:100%;max-width:680px;margin-bottom:56px;
+}
+.portal{
+  flex:1;min-width:260px;max-width:310px;
+  background:#fff;border-radius:24px;box-shadow:var(--shadow);
+  padding:28px 24px;display:flex;flex-direction:column;align-items:center;
+  gap:14px;text-align:center;border:2px solid transparent;
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.portal:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(70,50,20,0.14);}
+.portal.teacher{border-color:var(--coral-bg);}
+.portal.student{border-color:var(--teal-bg);}
+.portal-icon{font-size:40px;line-height:1;}
+.portal h2{font-family:var(--font-d);font-size:20px;font-weight:700;}
+.portal p{font-size:13px;color:var(--ink-soft);line-height:1.55;}
+.portal-btn{
+  width:100%;border:none;border-radius:999px;padding:13px;
+  font-family:var(--font-d);font-weight:700;font-size:15px;color:#fff;
+  margin-top:4px;transition:opacity .15s;
+}
+.portal-btn:hover{opacity:.9;}
+.portal.teacher .portal-btn{background:var(--coral-dark);}
+.portal.student .portal-btn{background:var(--teal-dark);}
+
+/* ── FEATURES ── */
+.features{
+  display:flex;flex-wrap:wrap;gap:16px;justify-content:center;
+  max-width:860px;width:100%;padding:0 24px;margin-bottom:60px;
+}
+.feature{
+  display:flex;align-items:flex-start;gap:11px;
+  background:#fff;border-radius:var(--radius);padding:16px 18px;
+  box-shadow:0 2px 10px rgba(70,50,20,.06);flex:1;min-width:220px;max-width:260px;
+}
+.feature-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
+.feature-text .title{font-weight:800;font-size:13px;margin-bottom:3px;}
+.feature-text .desc{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;padding:20px;font-size:12px;color:var(--ink-soft);
+  border-top:1px solid var(--line);background:rgba(255,254,251,.7);
+}
+footer b{color:var(--ink);}
+
+/* ── RESPONSIVE ── */
+[data-theme="dark"]{
+  --cloud:#1B1916;--paper:#201E1A;--grid-dot:#2C2924;
+  --ink:#E5E1D8;--ink-soft:#9A9085;
+  --coral-bg:#261510;--teal-bg:#0E1E1B;
+  --line:#302C26;--shadow:0 3px 14px rgba(0,0,0,.45);
+}
+[data-theme="dark"] body{background:var(--cloud);}
+[data-theme="dark"] nav{background:rgba(27,25,22,.92);}
+[data-theme="dark"] .portal,[data-theme="dark"] .feature{background:#28251F!important;}
+
+@media(max-width:560px){
+  nav{padding:14px 20px;}
+  .nav-brand{font-size:18px;}
+  .portals{flex-direction:column;align-items:center;}
+  .portal{max-width:100%;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">✏️ Slate</div>
+  <div class="nav-links">
+    <a href="teacher.html"><button class="nav-btn teacher">🧑‍🏫 Teacher Login</button></a>
+    <a href="student.html"><button class="nav-btn student">🙂 Student Login</button></a>
+  </div>
+  <button id="themeToggle" style="border:none;background:transparent;font-size:18px;cursor:pointer;padding:4px 8px;" title="Toggle theme">&#x1F319;</button>
+</nav>
+<script>
+function setTheme(t){document.documentElement.setAttribute("data-theme",t);localStorage.setItem("slate_theme",t);var btn=document.getElementById("themeToggle");if(btn)btn.textContent=t==="dark"?"\u2600\ufe0f":"\U0001f319";}
+setTheme(localStorage.getItem("slate_theme")||"light");
+document.getElementById("themeToggle").addEventListener("click",function(){setTheme(document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark");});
+</script>
+
+<main class="hero">
+
+  <div class="hero-badge">✨ Live math whiteboard</div>
+
+  <h1>
+    Teach math <span class="accent-coral">live</span>,<br>
+    see every student's work <span class="accent-teal">in real time</span>
+  </h1>
+
+  <p>
+    Slate connects your teacher dashboard with your students' whiteboards.
+    Draw, annotate, send hints, and lock boards — all without leaving your browser.
+  </p>
+
+  <div class="portals">
+    <div class="portal teacher">
+      <div class="portal-icon">🧑‍🏫</div>
+      <h2>I'm a Teacher</h2>
+      <p>Create classrooms, monitor students live, annotate boards, manage accounts, and build assignments.</p>
+      <a href="teacher.html"><button class="portal-btn">Sign In as Teacher →</button></a>
+    </div>
+    <div class="portal student">
+      <div class="portal-icon">🙂</div>
+      <h2>I'm a Student</h2>
+      <p>Sign in with the username and password your teacher gave you, then get to work on your board.</p>
+      <a href="student.html"><button class="portal-btn">Sign In as Student →</button></a>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🔴</div>
+      <div class="feature-text">
+        <div class="title">Live monitor</div>
+        <div class="desc">See every student's board update in real time as they work.</div>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✏️</div>
+      <div class="feature-text">
+        <div class="title">Draw on their board</div>
+        <div class="desc">Open any student's board and correct or highlight their work directly.</div>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💡</div>
+      <div class="feature-text">
+        <div class="title">Send hints</div>
+        <div class="desc">Drop a sticky-note hint onto a student's board without interrupting the class.</div>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-text">
+        <div class="title">Lock & unlock</div>
+        <div class="desc">Pause a student's board when you need their attention, then release it.</div>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔢</div>
+      <div class="feature-text">
+        <div class="title">Math keyboard</div>
+        <div class="desc">Numbers, operators, fractions, exponents, geometry symbols — always on screen.</div>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">👥</div>
+      <div class="feature-text">
+        <div class="title">Student accounts</div>
+        <div class="desc">Create logins, set passwords, and reset access — all from the dashboard.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <b>Slate</b> — built for live math teaching &nbsp;·&nbsp;
+  Questions? Ask your teacher or administrator.
+</footer>
+
+</body>
+</html>
