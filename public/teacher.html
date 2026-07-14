@@ -505,7 +505,7 @@
 
 <div class="modal-overlay" id="credsModal">
   <div class="modal">
-    <h3 id="credsTitle">Student Credentials</h3>
+    <h3>Student Credentials</h3>
     <p style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">Share these login details with the student. Change the password any time from the Students section.</p>
     <div class="creds-box" id="credsBox"></div>
     <div class="modal-actions">
@@ -661,6 +661,28 @@
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+
+<!-- Floating Math Keyboard (for annotation modal) -->
+<div id="floatKbd" style="display:none;position:fixed;z-index:200;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
+  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
+    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
+    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
+  </div>
+  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
+      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
+      <button class="cat-toggle active" data-tcat="ops">+ − × ÷</button>
+      <button class="cat-toggle" data-tcat="alg">x y z</button>
+      <button class="cat-toggle" data-tcat="sym">π √ °</button>
+      <button class="cat-toggle" data-tcat="exp">x² xⁿ</button>
+      <button class="cat-toggle" data-tcat="frac">½</button>
+      <button class="cat-toggle" data-tcat="geo">∠ Σ ∫</button>
+    </div>
+    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
+    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">Tap a key to arm it · tap the board to place it</div>
+  </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function(){
@@ -1309,6 +1331,26 @@ function reconstructImages(objects){
   return objects;
 }
 
+/* Network Helpers inside IIFE scope */
+async function apiPost(url, body, token){
+  const headers={'Content-Type':'application/json'};
+  if(token) headers['Authorization']='Bearer '+token;
+  const res=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
+  return res.json();
+}
+async function apiGet(url, token){
+  const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+  return res.json();
+}
+async function apiPatch(url, body, token){
+  const res=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  return res.json();
+}
+async function apiDelete(url, token){
+  const res=await fetch(url,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  return res.json();
+}
+
 /* =========================================================
    Realtime connection — keeps classroom data live
    ========================================================= */
@@ -1327,13 +1369,12 @@ socket.on('connect', ()=>{
 socket.on('disconnect', ()=>{ serverStatus.textContent='🔴 Server disconnected'; serverStatus.className='server-status offline'; });
 socket.on('connect_error', ()=>{ serverStatus.textContent='🔴 Couldn\u2019t reach server'; serverStatus.className='server-status offline'; });
 
-/* ── stroke:live — see student pen strokes at ~60fps without waiting for full sync ── */
+/* ── stroke:live ── */
 socket.on('stroke:live', data=>{
   const c=findByCode(data.code);
   if(!c) return;
   const s=(c.students||[]).find(x=>x.id===data.studentId);
   if(!s) return;
-  /* Update thumbnail */
   if(s.__board){
     let path=s.__board.state.objects.find(o=>o.id===data.pathId);
     if(!path){
@@ -1346,7 +1387,6 @@ socket.on('stroke:live', data=>{
     if(s.__board.setStableValid) s.__board.setStableValid(false);
     s.__board.render();
   }
-  /* Update open monitor modal */
   const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
   if(modalOpen && window.monitorBoard && window.monitorStudent && window.monitorStudent.id===data.studentId){
     let path=window.monitorBoard.state.objects.find(o=>o.id===data.pathId);
@@ -1386,7 +1426,6 @@ socket.on('student:objects', (data)=>{
     if(s.__board.setStableValid) s.__board.setStableValid(false);
     s.__board.render();
   }
-  /* Live modal update — student strokes appear under teacher's annotations */
   const modalOpen=document.getElementById('monitorModal')?.classList.contains('show');
   if(modalOpen && window.monitorBoard && window.monitorStudent && window.monitorStudent.id===data.studentId){
     const teacherObjs=window.monitorBoard.state.objects.filter(o=>o.owner==='teacher');
@@ -1668,23 +1707,16 @@ document.getElementById('monitorFracBtn').addEventListener('click', ()=>{
   if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
 });
 
-/* ── Annotation toolbar: colors, sizes, image, PDF, keyboard, equation ── */
+/* ── Annotation toolbar ── */
 document.getElementById('monitorModalToolbar').addEventListener('click', e=>{
   const mb = window.monitorBoard; if(!mb) return;
   const ac = mb._annotateConfig;
-  /* color swatches */
   const cs=e.target.closest('[data-mcolor]');
   if(cs){ if(ac) ac.color=cs.dataset.mcolor; document.querySelectorAll('.mswatch').forEach(b=>b.classList.remove('active')); cs.classList.add('active'); return; }
-  /* width buttons */
   const wb=e.target.closest('[data-mwidth]');
   if(wb){ if(ac) ac.width=parseInt(wb.dataset.mwidth); document.querySelectorAll('.mwbtn').forEach(b=>b.classList.remove('active')); wb.classList.add('active'); return; }
-  /* draw tool buttons */
   const tb=e.target.closest('[data-mtool]');
-  if(tb){
-    if(ac) ac.tool=tb.dataset.mtool;
-    document.querySelectorAll('[data-mtool]').forEach(b=>b.classList.remove('active')); tb.classList.add('active');
-    return;
-  }
+  if(tb){ if(ac) ac.tool=tb.dataset.mtool; document.querySelectorAll('[data-mtool]').forEach(b=>b.classList.remove('active')); tb.classList.add('active'); return; }
 });
 document.getElementById('monitorImgBtn').addEventListener('click',()=>document.getElementById('monitorImgInput').click());
 document.getElementById('monitorImgInput').addEventListener('change',e=>{
@@ -1692,7 +1724,8 @@ document.getElementById('monitorImgInput').addEventListener('change',e=>{
   const mb=window.monitorBoard; if(!file||!mb) return;
   mb.insertImageFromFile(file);
 });
-/* ── Floating keyboard for teacher annotation board ── */
+
+/* ── Floating keyboard ── */
 const TKBD_CATS = {
   ops:  { keys: [['+','+'],['-','-'],['×','×'],['÷','÷'],['=','=']] },
   alg:  { keys: [['x','x'],['y','y'],['z','z'],['a','a'],['b','b'],['c','c']] },
@@ -1729,7 +1762,7 @@ function buildTKbdKeys(){
     if(window.monitorBoard) window.openFractionModal(window.monitorBoard);
   }));
 }
-/* drag */
+
 (()=>{
   const fkbd = document.getElementById('floatKbd');
   const handle = document.getElementById('floatKbdHandle');
@@ -1751,7 +1784,7 @@ function buildTKbdKeys(){
   });
   handle.addEventListener('pointerup',()=>{drag=null;});
 })();
-/* category toggles — use data-tcat to avoid conflict with student page */
+
 document.querySelectorAll('[data-tcat]').forEach(btn=>btn.addEventListener('click',()=>{
   const cat=btn.dataset.tcat;
   if(tActiveCats.has(cat)){tActiveCats.delete(cat);btn.classList.remove('active');}
@@ -1815,7 +1848,6 @@ document.getElementById('eqCancel').addEventListener('click',()=>document.getEle
 
 async function _insertEquationOnBoard(latex, board, modalId){
   if(!window.katex){ alert('KaTeX not loaded yet.'); return; }
-  /* Render KaTeX into a visible-but-off-screen div so html2canvas can capture it */
   const c = document.createElement('div');
   c.style.cssText='position:fixed;left:0;top:-9999px;padding:16px 22px;font-size:32px;background:#fff;display:inline-block;min-width:60px;';
   document.body.appendChild(c);
@@ -1862,7 +1894,6 @@ document.getElementById('monitorExpand').addEventListener('click',()=>{
   const modal=document.querySelector('#monitorModal .modal');
   const isFs=modal.classList.toggle('fs');
   document.getElementById('monitorExpand').textContent=isFs?'⊙':'⛶';
-  // Recompute transform scale factor on window environment layout
   setTimeout(()=>{
     if(!window.monitorBoard || !window.monitorStudent || !window._monitorOpts) return;
     const wrap=document.getElementById('monitorWrap');
@@ -1887,7 +1918,6 @@ document.getElementById('monitorModalClose').addEventListener('click', ()=>{
   renderMonitor();
 });
 
-/* hint modal wiring */
 const hintModal = document.getElementById('hintModal');
 const hintText = document.getElementById('hintText');
 window.openHintModal = ()=>{ hintText.value=''; hintModal.classList.add('show'); hintText.focus(); };
@@ -2046,8 +2076,6 @@ function renderAnalytics(){
     return;
   }
   const a = c.analytics;
-  const sparkPoints = a.weekly.map((v,i)=> (i*(280/(a.weekly.length-1))) + ',' + (60 - (v/100)*55)).join(' ');
-
   body.innerHTML =
     '<div class="stat-tiles">'+
       '<div class="stat-tile"><div class="num">'+a.avgAccuracy+'%</div><div class="label">Average accuracy</div></div>'+
@@ -2069,7 +2097,6 @@ function renderAnalytics(){
   sessionList.querySelectorAll('[data-replay]').forEach(b=> b.addEventListener('click', ()=> openReplay(a.sessions.find(s=>s.id===b.dataset.replay))));
 }
 
-let replayTimer = null;
 function openReplay(session){
   document.getElementById('replayTitle').textContent = session.label;
   const wrap = document.getElementById('replayWrap');
@@ -2092,14 +2119,13 @@ function openReplay(session){
     document.getElementById('replayTime').textContent = session.frames[i].label;
     scrubber.value = i;
   }
-  scrubber.oninput = () => { clearInterval(replayTimer); showFrame(parseInt(scrubber.value,10)); };
+  scrubber.oninput = () => { showFrame(parseInt(scrubber.value,10)); };
   document.getElementById('replayModal').classList.add('show');
 }
 document.getElementById('replayClose').addEventListener('click', ()=>{
-  clearInterval(replayTimer); document.getElementById('replayModal').classList.remove('show');
+  document.getElementById('replayModal').classList.remove('show');
 });
 
-/* fraction modal wiring (shared) */
 const fracModalEl = document.getElementById('fractionModal');
 if(fracModalEl){
   const fracNum = document.getElementById('fracNum');
@@ -2117,118 +2143,43 @@ if(fracModalEl){
 }
 
 /* =========================================================
-   Auth boot
+   Auth Integration Link
    ========================================================= */
-document.querySelectorAll('.pw-eye').forEach(btn=>btn.addEventListener('click',()=>{
-  const inp=document.getElementById(btn.dataset.eye);if(!inp)return;
-  inp.type=inp.type==='password'?'text':'password';btn.textContent=inp.type==='password'?'👁':'🙈';
-}));
-
-let authToken = localStorage.getItem('slate_teacher_token') || null;
-let currentTeacherName = '';
-
-function genPassword(){const words=['star','blue','math','chalk','learn'];const n=Math.floor(Math.random()*900)+100;return words[Math.floor(Math.random()*words.length)]+n;}
-
-async function apiPost(url, body, token){
-  const headers={'Content-Type':'application/json'};
-  if(token) headers['Authorization']='Bearer '+token;
-  const res=await fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
-  return res.json();
-}
-async function apiGet(url, token){
-  const res=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
-  return res.json();
-}
-async function apiPatch(url, body, token){
-  const res=await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-  return res.json();
-}
-async function apiDelete(url, token){
-  const res=await fetch(url,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
-  return res.json();
-}
-
-function showDashboard(name){
-  currentTeacherName=name;
+window._showDashboard = function(name, token){
+  if(token) window._authToken = token;
+  const authToken = window._authToken || '';
   document.getElementById('tLoginPage').classList.remove('show');
   document.getElementById('tRegisterPage').classList.remove('show');
   document.getElementById('appShell').style.display='flex';
   document.getElementById('sidebarName').textContent=name;
-  apiGet('/api/classrooms', authToken).then(data=>{
-    if(data.ok && data.classrooms.length){
-      data.classrooms.forEach(srv=>{
-        const existing = classrooms.find(c=>classCode(c)===srv.code);
-        if(!existing){
-          classrooms.push({
-            id: uid(), name: srv.name,
-            serverCode: srv.code, inviteCode: srv.code, connected: true,
-            students: srv.students || [], assignments:[], analytics:null
-          });
-        } else {
-          existing.students = srv.students || [];
-        }
-      });
-    }
+  (async()=>{
+    try{
+      const data = await fetch('/api/classrooms',{headers:{'Authorization':'Bearer '+authToken}}).then(r=>r.json());
+      if(data.ok && data.classrooms.length){
+        data.classrooms.forEach(srv=>{
+          const existing = classrooms.find(c=>classCode(c)===srv.code);
+          if(!existing){
+            classrooms.push({id:uid(),name:srv.name,serverCode:srv.code,inviteCode:srv.code,connected:true,students:srv.students||[],assignments:[],analytics:null});
+          } else { existing.students=srv.students||[]; }
+        });
+      }
+    }catch(e){}
     renderClassrooms();
-  }).catch(()=>renderClassrooms());
-}
+  })();
+};
 
-document.getElementById('tSignOutBtn').addEventListener('click',()=>{
-  authToken=null;localStorage.removeItem('slate_teacher_token');
+window._signOut = function(){
+  window._authToken=null;
+  localStorage.removeItem('slate_teacher_token');
   document.getElementById('appShell').style.display='none';
   document.getElementById('tLoginPage').classList.add('show');
+};
+document.getElementById('tSignOutBtn').addEventListener('click',()=>window._signOut());
+
+Object.defineProperty(window,'authToken',{
+  get(){ return window._authToken||null; },
+  set(v){ window._authToken=v; }
 });
-
-document.getElementById('tLoginBtn').addEventListener('click',doLogin);
-document.getElementById('tLoginPw').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
-document.getElementById('tLoginEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
-async function doLogin(){
-  const email=document.getElementById('tLoginEmail').value.trim();
-  const pw=document.getElementById('tLoginPw').value;
-  const errEl=document.getElementById('tLoginErr');
-  const btn=document.getElementById('tLoginBtn');
-  if(!email){errEl.textContent='Please enter your email.';return;}
-  if(!pw){errEl.textContent='Please enter your password.';return;}
-  errEl.textContent=''; btn.textContent='Signing in…'; btn.disabled=true;
-  try{
-    const res=await apiPost('/api/teacher/login',{email,password:pw});
-    btn.textContent='Sign In'; btn.disabled=false;
-    if(!res.ok){errEl.textContent=res.error||'Incorrect email or password.';return;}
-    authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
-    showDashboard(res.name);
-  }catch(e){
-    btn.textContent='Sign In'; btn.disabled=false;
-    errEl.textContent='Could not reach the server. Check your connection.';
-  }
-}
-
-document.getElementById('tToRegister').addEventListener('click',()=>{document.getElementById('tLoginPage').classList.remove('show');document.getElementById('tRegisterPage').classList.add('show');});
-document.getElementById('tToLogin').addEventListener('click',()=>{document.getElementById('tRegisterPage').classList.remove('show');document.getElementById('tLoginPage').classList.add('show');});
-document.getElementById('tRegBtn').addEventListener('click',doRegister);
-document.getElementById('tRegPw2').addEventListener('keydown',e=>{ if(e.key==='Enter') doRegister(); });
-async function doRegister(){
-  const name=document.getElementById('tRegName').value.trim();
-  const email=document.getElementById('tRegEmail').value.trim();
-  const pw=document.getElementById('tRegPw').value;
-  const pw2=document.getElementById('tRegPw2').value;
-  const errEl=document.getElementById('tRegErr');
-  const btn=document.getElementById('tRegBtn');
-  if(!name){errEl.textContent='Please enter your name.';return;}
-  if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email address.';return;}
-  if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';return;}
-  if(pw!==pw2){errEl.textContent='Passwords do not match.';return;}
-  errEl.textContent=''; btn.textContent='Creating account…'; btn.disabled=true;
-  try{
-    const res=await apiPost('/api/teacher/register',{name,email,password:pw});
-    btn.textContent='Create Account'; btn.disabled=false;
-    if(!res.ok){errEl.textContent=res.error||'Registration failed. Please try again.';return;}
-    authToken=res.token;localStorage.setItem('slate_teacher_token',authToken);
-    showDashboard(res.name);
-  }catch(e){
-    btn.textContent='Create Account'; btn.disabled=false;
-    errEl.textContent='Could not reach the server. Check your connection.';
-  }
-}
 
 /* ── Students section ── */
 async function renderStudents(){
@@ -2298,38 +2249,106 @@ document.getElementById('themeToggle').addEventListener('click',()=>{
   setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 });
 
-(async()=>{
-  if(authToken){
-    try{
-      const me=await apiPost('/api/auth/me',{token:authToken});
-      if(me.ok&&me.type==='teacher'){showDashboard(me.name);return;}
-    }catch(e){}
-  }
-  document.getElementById('tLoginPage').classList.add('show');
-})();
 })();
 </script>
 
-<!-- Floating Math Keyboard (for annotation modal) -->
-<div id="floatKbd" style="display:none;position:fixed;z-index:200;width:300px;max-width:92vw;background:#fff;border-radius:18px;box-shadow:0 12px 36px rgba(40,30,10,.22);border:1.5px solid var(--line);user-select:none;">
-  <div id="floatKbdHandle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:var(--cloud);border-radius:16px 16px 0 0;cursor:grab;touch-action:none;">
-    <span style="font-family:var(--font-display);font-weight:600;font-size:13px;">🔢 Math Keys</span>
-    <button id="floatKbdClose" style="border:none;background:none;font-size:15px;color:var(--ink-soft);cursor:pointer;padding:2px 5px;line-height:1;">✕</button>
-  </div>
-  <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
-    <div style="display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);">
-      <span style="font-size:10px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;align-self:center;margin-right:2px;">Show:</span>
-      <button class="cat-toggle active" data-tcat="ops">+ − × ÷</button>
-      <button class="cat-toggle" data-tcat="alg">x y z</button>
-      <button class="cat-toggle" data-tcat="sym">π √ °</button>
-      <button class="cat-toggle" data-tcat="exp">x² xⁿ</button>
-      <button class="cat-toggle" data-tcat="frac">½</button>
-      <button class="cat-toggle" data-tcat="geo">∠ Σ ∫</button>
-    </div>
-    <div id="floatKbdKeys" style="display:flex;flex-direction:column;gap:7px;"></div>
-    <div style="font-size:10.5px;color:var(--ink-soft);text-align:center;padding-top:4px;">Tap a key to arm it · tap the board to place it</div>
-  </div>
-</div>
+<!-- Standalone Auth Implementation Layer -->
+<script>
+(function(){
+  async function apiPost(url,body,token){
+    var h={'Content-Type':'application/json'};
+    if(token) h['Authorization']='Bearer '+token;
+    var r=await fetch(url,{method:'POST',headers:h,body:JSON.stringify(body)});
+    return r.json();
+  }
 
+  document.querySelectorAll('.pw-eye').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var inp=document.getElementById(btn.dataset.eye);
+      if(!inp)return;
+      inp.type=inp.type==='password'?'text':'password';
+      btn.textContent=inp.type==='password'?'👁':'🙈';
+    });
+  });
+
+  document.getElementById('tToRegister').addEventListener('click',function(){
+    document.getElementById('tLoginPage').classList.remove('show');
+    document.getElementById('tRegisterPage').classList.add('show');
+    document.getElementById('tRegErr').textContent='';
+  });
+  document.getElementById('tToLogin').addEventListener('click',function(){
+    document.getElementById('tRegisterPage').classList.remove('show');
+    document.getElementById('tLoginPage').classList.add('show');
+    document.getElementById('tLoginErr').textContent='';
+  });
+
+  function doLogin(){
+    var email=document.getElementById('tLoginEmail').value.trim();
+    var pw=document.getElementById('tLoginPw').value;
+    var errEl=document.getElementById('tLoginErr');
+    var btn=document.getElementById('tLoginBtn');
+    if(!email){errEl.textContent='Please enter your email.';return;}
+    if(!pw){errEl.textContent='Please enter your password.';return;}
+    errEl.textContent=''; btn.textContent='Signing in…'; btn.disabled=true;
+    apiPost('/api/teacher/login',{email:email,password:pw}).then(function(res){
+      btn.textContent='Sign In'; btn.disabled=false;
+      if(!res.ok){errEl.textContent=res.error||'Incorrect email or password.';return;}
+      window._authToken=res.token;
+      localStorage.setItem('slate_teacher_token',res.token);
+      window._showDashboard&&window._showDashboard(res.name,res.token);
+    }).catch(function(){
+      btn.textContent='Sign In'; btn.disabled=false;
+      errEl.textContent='Server unreachable. If on Render free tier, wait 30s and try again.';
+    });
+  }
+  document.getElementById('tLoginBtn').addEventListener('click',doLogin);
+  document.getElementById('tLoginPw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+  document.getElementById('tLoginEmail').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+
+  function doRegister(){
+    var name=document.getElementById('tRegName').value.trim();
+    var email=document.getElementById('tRegEmail').value.trim();
+    var pw=document.getElementById('tRegPw').value;
+    var pw2=document.getElementById('tRegPw2').value;
+    var errEl=document.getElementById('tRegErr');
+    var btn=document.getElementById('tRegBtn');
+    if(!name){errEl.textContent='Please enter your name.';return;}
+    if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email.';return;}
+    if(pw.length<8){errEl.textContent='Password must be at least 8 characters.';return;}
+    if(pw!==pw2){errEl.textContent='Passwords do not match.';return;}
+    errEl.textContent=''; btn.textContent='Creating account…'; btn.disabled=true;
+    apiPost('/api/teacher/register',{name:name,email:email,password:pw}).then(function(res){
+      btn.textContent='Create Account'; btn.disabled=false;
+      if(!res.ok){errEl.textContent=res.error||'Could not create account.';return;}
+      window._authToken=res.token;
+      localStorage.setItem('slate_teacher_token',res.token);
+      window._showDashboard&&window._showDashboard(res.name,res.token);
+    }).catch(function(){
+      btn.textContent='Create Account'; btn.disabled=false;
+      errEl.textContent='Server unreachable. If on Render free tier, wait 30s and try again.';
+    });
+  }
+  document.getElementById('tRegBtn').addEventListener('click',doRegister);
+  document.getElementById('tRegPw2').addEventListener('keydown',function(e){if(e.key==='Enter')doRegister();});
+
+  var saved=localStorage.getItem('slate_teacher_token');
+  if(saved){
+    window._authToken=saved;
+    apiPost('/api/auth/me',{token:saved}).then(function(me){
+      if(me&&me.ok&&me.type==='teacher'){
+        window._showDashboard&&window._showDashboard(me.name,saved);
+      } else {
+        localStorage.removeItem('slate_teacher_token');
+        window._authToken=null;
+        document.getElementById('tLoginPage').classList.add('show');
+      }
+    }).catch(function(){
+      document.getElementById('tLoginPage').classList.add('show');
+    });
+  } else {
+    document.getElementById('tLoginPage').classList.add('show');
+  }
+})();
+</script>
 </body>
 </html>

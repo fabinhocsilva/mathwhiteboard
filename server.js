@@ -6,25 +6,26 @@
    persist sessions across restarts.
    ========================================================= */
 const express = require('express');
-const http = require('http');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+const http    = require('http');
+const path    = require('path');
+const fs      = require('fs');
+const crypto  = require('crypto');
 const { Server } = require('socket.io');
-const DATA_FILE = path.join('/tmp', 'slate-data.json');
-const app = express();
+const DATA_FILE = path.join(__dirname, 'slate-data.json');
+
+const app    = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io     = new Server(server, { cors: { origin: '*' } });
 
 /* ── helpers ── */
-const uid = () => crypto.randomUUID();
+const uid     = () => crypto.randomUUID();
 const genCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let a = '', b = '';
-  for (let i = 0; i < 4; i++) { a += chars[Math.floor(Math.random() * chars.length)]; b += chars[Math.floor(Math.random() * chars.length)]; }
+  for (let i = 0; i < 4; i++) { a += chars[Math.floor(Math.random()*chars.length)]; b += chars[Math.floor(Math.random()*chars.length)]; }
   return a + '-' + b;
 };
 
@@ -43,46 +44,46 @@ function checkPw(password, stored) {
 }
 
 /* ── In-memory stores ── */
-const teachers = new Map(); // email   → { id, email, name, passwordHash }
-const students = new Map(); // username → { id, username, passwordHash, name, avatar, classroomCode }
+const teachers   = new Map(); // email   → { id, email, name, passwordHash }
+const students   = new Map(); // username → { id, username, passwordHash, name, avatar, classroomCode }
 const classrooms = new Map(); // code    → { code, name, teacherId, students: Map }
-const sessions = new Map(); // token   → { type:'teacher'|'student', id, username? }
+const sessions   = new Map(); // token   → { type:'teacher'|'student', id, username? }
 const invitations = new Map(); // id → { id, teacherId, teacherName, studentUsername, classroomCode, classroomName, status, createdAt }
 
 /* ── Persist to disk so student work survives server restarts ── */
-function saveState() {
-  try {
-    const data = {
-      teachers: Array.from(teachers.values()).map(t => ({ ...t })),
-      students: Array.from(students.values()).map(s => ({ ...s })),
-      classrooms: Array.from(classrooms.values()).map(c => ({
-        code: c.code, name: c.name, teacherId: c.teacherId,
-        students: Array.from(c.students.values()).map(s => (Object.assign({}, s, { socketId: null, status: 'offline', livePathId: null, objects: JSON.parse(JSON.stringify(s.objects || [], (k, v) => k === '_imgEl' ? undefined : v)) })))
+function saveState(){
+  try{
+    const data={
+      teachers:Array.from(teachers.values()).map(t=>({...t})),
+      students:Array.from(students.values()).map(s=>({...s})),
+      classrooms:Array.from(classrooms.values()).map(c=>({
+        code:c.code,name:c.name,teacherId:c.teacherId,
+        students:Array.from(c.students.values()).map(s=>(Object.assign({},s,{socketId:null,status:'offline',livePathId:null,objects:JSON.parse(JSON.stringify(s.objects||[],(k,v)=>k==='_imgEl'?undefined:v))})))
       })),
-      invitations: Array.from(invitations.values()).map(i => ({ ...i }))
+      invitations:Array.from(invitations.values()).map(i=>({...i}))
     };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data));
-  } catch (e) { console.warn('Save error:', e.message); }
+    fs.writeFileSync(DATA_FILE,JSON.stringify(data));
+  }catch(e){ console.warn('Save error:',e.message); }
 }
-function loadState() {
-  if (!fs.existsSync(DATA_FILE)) return;
-  try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    (data.teachers || []).forEach(t => teachers.set(t.email, t));
-    (data.students || []).forEach(s => students.set(s.username, s));
-    (data.classrooms || []).forEach(c => {
-      const room = { ...c, students: new Map() };
-      (c.students || []).forEach(s => room.students.set(s.id, { ...s }));
-      classrooms.set(c.code, room);
+function loadState(){
+  if(!fs.existsSync(DATA_FILE)) return;
+  try{
+    const data=JSON.parse(fs.readFileSync(DATA_FILE,'utf8'));
+    (data.teachers||[]).forEach(t=>teachers.set(t.email,t));
+    (data.students||[]).forEach(s=>students.set(s.username,s));
+    (data.classrooms||[]).forEach(c=>{
+      const room={...c,students:new Map()};
+      (c.students||[]).forEach(s=>room.students.set(s.id,{...s}));
+      classrooms.set(c.code,room);
     });
-    (data.invitations || []).forEach(i => invitations.set(i.id, i));
-    console.log('State loaded —', teachers.size, 'teachers,', students.size, 'students,', classrooms.size, 'classrooms');
-  } catch (e) { console.warn('Load error:', e.message); }
+    (data.invitations||[]).forEach(i=>invitations.set(i.id,i));
+    console.log('State loaded —',teachers.size,'teachers,',students.size,'students,',classrooms.size,'classrooms');
+  }catch(e){ console.warn('Load error:',e.message); }
 }
 loadState();
-setInterval(saveState, 30000); // save every 30s
-process.on('SIGTERM', () => { saveState(); process.exit(0); });
-process.on('SIGINT', () => { saveState(); process.exit(0); });
+setInterval(saveState,30000); // save every 30s
+process.on('SIGTERM',()=>{saveState();process.exit(0);});
+process.on('SIGINT',()=>{saveState();process.exit(0);});
 
 function makeToken(type, id, extra) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -108,9 +109,9 @@ function summarize(room) {
 app.post('/api/teacher/register', (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) return res.json({ ok: false, error: 'All fields required.' });
-  if (password.length < 8) return res.json({ ok: false, error: 'Password must be at least 8 characters.' });
+  if (password.length < 8)          return res.json({ ok: false, error: 'Password must be at least 8 characters.' });
   const key = email.trim().toLowerCase();
-  if (teachers.has(key)) return res.json({ ok: false, error: 'An account with that email already exists.' });
+  if (teachers.has(key))            return res.json({ ok: false, error: 'An account with that email already exists.' });
   const teacher = { id: uid(), email: key, name: name.trim(), passwordHash: hashPw(password) };
   teachers.set(key, teacher);
   const token = makeToken('teacher', teacher.id);
@@ -178,9 +179,9 @@ app.post('/api/students', (req, res) => {
   if (!teacherFromReq(req)) return res.status(401).json({ ok: false });
   const { name, username, password, avatar, classroomCode } = req.body || {};
   if (!name || !username || !password) return res.json({ ok: false, error: 'name, username and password are required.' });
-  if (password.length < 4) return res.json({ ok: false, error: 'Password must be at least 4 characters.' });
+  if (password.length < 4)             return res.json({ ok: false, error: 'Password must be at least 4 characters.' });
   const key = username.trim().toLowerCase();
-  if (students.has(key)) return res.json({ ok: false, error: 'That username is already taken.' });
+  if (students.has(key))               return res.json({ ok: false, error: 'That username is already taken.' });
   const student = { id: uid(), username: key, name: name.trim(), passwordHash: hashPw(password), avatar: avatar || '🙂', classroomCode: classroomCode || null };
   students.set(key, student);
   res.json({ ok: true, student: { id: student.id, username: student.username, name: student.name, avatar: student.avatar, classroomCode: student.classroomCode } });
@@ -197,7 +198,7 @@ app.patch('/api/students/:username', (req, res) => {
     s.passwordHash = hashPw(password);
   }
   if (classroomCode !== undefined) s.classroomCode = classroomCode;
-  if (avatar) s.avatar = avatar;
+  if (avatar)                      s.avatar = avatar;
   res.json({ ok: true });
 });
 
@@ -340,10 +341,8 @@ io.on('connection', (socket) => {
     if (!room) { cb && cb({ ok: false, error: 'Classroom not found.' }); return; }
     const studentAccount = students.get(sess.username);
     const id = uid();
-    const student = {
-      id, name: studentAccount ? studentAccount.name : 'Student', avatar: studentAccount ? studentAccount.avatar : '🙂',
-      objects: [], locked: false, status: 'active', canvasWidth: 1100, canvasHeight: 500, socketId: socket.id, permissions: { annotate: true, lock: true, editProfile: true }
-    };
+    const student = { id, name: studentAccount ? studentAccount.name : 'Student', avatar: studentAccount ? studentAccount.avatar : '🙂',
+      objects: [], locked: false, status: 'active', canvasWidth: 1100, canvasHeight: 500, socketId: socket.id, permissions: {annotate:true,lock:true,editProfile:true} };
     room.students.set(id, student);
     socket.join('classroom:' + code);
     socket.data.role = 'student'; socket.data.code = code; socket.data.studentId = id;
@@ -365,9 +364,9 @@ io.on('connection', (socket) => {
   socket.on('student:sync', ({ objects, canvasWidth, canvasHeight }) => {
     const code = socket.data.code, id = socket.data.studentId;
     const room = classrooms.get(code); if (!room) return;
-    const s = room.students.get(id); if (!s) return;
+    const s = room.students.get(id);  if (!s)    return;
     s.objects = objects;
-    if (canvasWidth) s.canvasWidth = canvasWidth;
+    if (canvasWidth)  s.canvasWidth  = canvasWidth;
     if (canvasHeight) s.canvasHeight = canvasHeight;
     s.status = s.locked ? 'locked' : 'active';
     io.to('teacher:' + code).emit('student:objects', { code, studentId: id, objects, canvasWidth: s.canvasWidth, canvasHeight: s.canvasHeight });
@@ -409,53 +408,49 @@ io.on('connection', (socket) => {
 
   // Respect student permissions on annotate + lock
   /* ── stroke:live relay: teacher sees student drawing at ~60fps ── */
-  socket.on('stroke:live', (data) => {
-    const code = socket.data.code;
-    if (!code || socket.data.role !== 'student') return;
-    io.to('teacher:' + code).emit('stroke:live', {
-      ...data, studentId: socket.data.studentId, code
+  socket.on('stroke:live', (data)=>{
+    const code=socket.data.code;
+    if(!code||socket.data.role!=='student') return;
+    io.to('teacher:'+code).emit('stroke:live',{
+      ...data, studentId:socket.data.studentId, code
     });
   });
 
   /* ── teacher:stroke:live relay: student sees teacher annotating at ~60fps ── */
-  socket.on('teacher:stroke:live', (data) => {
+  socket.on('teacher:stroke:live', (data)=>{
     const { studentId, code, pathId, points, color, width, owner } = data;
     const room = classrooms.get(code);
-    if (!room) return;
+    if(!room) return;
     const student = room.students.get(studentId);
-    if (!student || !student.socketId) return;
-    io.to(student.socketId).emit('teacher:stroke:live', { pathId, points, color, width, owner: 'teacher' });
+    if(!student || !student.socketId) return;
+    io.to(student.socketId).emit('teacher:stroke:live', { pathId, points, color, width, owner:'teacher' });
   });
 
   /* ── Quick join: student opens share link, enters just their name ── */
-  socket.on('whiteboard:quickjoin', ({ code, name, sessionKey }, cb) => {
-    const room = classrooms.get(code);
-    if (!room) { cb && cb({ ok: false, error: 'Whiteboard not found. Check the link and try again.' }); return; }
-    name = (name || '').trim();
-    if (!name) { cb && cb({ ok: false, error: 'Please enter your name.' }); return; }
+  socket.on('whiteboard:quickjoin', ({code, name, sessionKey}, cb)=>{
+    const room=classrooms.get(code);
+    if(!room){cb&&cb({ok:false,error:'Whiteboard not found. Check the link and try again.'});return;}
+    name=(name||'').trim();
+    if(!name){cb&&cb({ok:false,error:'Please enter your name.'});return;}
     // Reconnect: if same sessionKey seen before, restore their work
-    let student = sessionKey ? Array.from(room.students.values()).find(s => s.sessionKey === sessionKey) : null;
+    let student=sessionKey ? Array.from(room.students.values()).find(s=>s.sessionKey===sessionKey) : null;
     // Also try matching by name (for browser reload without sessionKey)
-    if (!student) student = Array.from(room.students.values()).find(s => s.name === name && !s.socketId);
-    if (!student) {
-      const id = uid();
-      student = {
-        id, name, avatar: '🙂', sessionKey: sessionKey || uid(),
-        objects: [], locked: false, status: 'active', canvasWidth: 1100, canvasHeight: 500,
-        socketId: socket.id, permissions: { annotate: true, lock: true, editProfile: true }, isGuest: true
-      };
-      room.students.set(id, student);
+    if(!student) student=Array.from(room.students.values()).find(s=>s.name===name&&!s.socketId);
+    if(!student){
+      const id=uid();
+      student={id,name,avatar:'🙂',sessionKey:sessionKey||uid(),
+        objects:[],locked:false,status:'active',canvasWidth:1100,canvasHeight:500,
+        socketId:socket.id,permissions:{annotate:true,lock:true,editProfile:true},isGuest:true};
+      room.students.set(id,student);
     } else {
-      student.status = 'active'; student.socketId = socket.id;
-      if (sessionKey) student.sessionKey = sessionKey;
+      student.status='active'; student.socketId=socket.id;
+      if(sessionKey) student.sessionKey=sessionKey;
     }
-    socket.join('classroom:' + code);
-    socket.data.role = 'student'; socket.data.code = code; socket.data.studentId = student.id;
-    io.to('teacher:' + code).emit('roster:update', summarize(room));
-    cb && cb({
-      ok: true, studentId: student.id, classroomName: room.name, code,
-      sessionKey: student.sessionKey, objects: student.objects || []
-    });
+    socket.join('classroom:'+code);
+    socket.data.role='student'; socket.data.code=code; socket.data.studentId=student.id;
+    io.to('teacher:'+code).emit('roster:update',summarize(room));
+    cb&&cb({ok:true,studentId:student.id,classroomName:room.name,code,
+            sessionKey:student.sessionKey,objects:student.objects||[]});
   });
 
   socket.on('disconnect', () => {
